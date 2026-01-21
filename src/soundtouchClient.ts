@@ -500,12 +500,17 @@ export class SoundTouchClient {
 
   async playSpotify(spotifyUri: string, sourceAccount: string): Promise<void> {
     // Spotify URIs: spotify:playlist:xxx, spotify:album:xxx, spotify:track:xxx
+    // The location needs to be in format: /playback/container/{base64-encoded-uri}
+    const base64Uri = Buffer.from(spotifyUri).toString('base64');
+    const location = `/playback/container/${base64Uri}`;
+
     const builder = new Builder({ headless: true });
     const xml = builder.buildObject({
       ContentItem: {
         $: {
           source: 'SPOTIFY',
-          location: spotifyUri,
+          type: 'tracklisturl',
+          location: location,
           sourceAccount: sourceAccount,
           isPresetable: 'true',
         },
@@ -520,6 +525,7 @@ export class SoundTouchClient {
       ContentItem: {
         $: {
           source: 'AMAZON',
+          type: 'tracklist',
           location: contentId,
           sourceAccount: sourceAccount,
           isPresetable: 'true',
@@ -539,6 +545,25 @@ export class SoundTouchClient {
           sourceAccount: sourceAccount,
           isPresetable: 'true',
         },
+      },
+    });
+    await this.post('/select', xml);
+  }
+
+  async playStoredMusic(location: string, sourceAccount: string, name = 'NAS'): Promise<void> {
+    // STORED_MUSIC for NAS/DLNA servers
+    // location: DLNA Object-ID (e.g., "64$1$1$0" for a folder/album)
+    // sourceAccount: Server-ID + "/0" (e.g., "4d696e69-444c-164e-9d41-7085c2aaffc5/0")
+    const builder = new Builder({ headless: true });
+    const xml = builder.buildObject({
+      ContentItem: {
+        $: {
+          source: 'STORED_MUSIC',
+          location: location,
+          sourceAccount: sourceAccount,
+          isPresetable: 'true',
+        },
+        itemName: name,
       },
     });
     await this.post('/select', xml);

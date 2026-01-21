@@ -198,6 +198,95 @@
     .discovered-info { display: flex; flex-direction: column; }
     .discovered-name { font-weight: 500; }
     .discovered-host { font-size: 12px; color: #6c757d; }
+
+    /* NAS Browser Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--hb-card-background, #fff);
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--hb-border-color, #dee2e6);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 { margin: 0; }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6c757d;
+    }
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid var(--hb-border-color, #dee2e6);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* NAS Browser */
+    .nas-breadcrumb {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    .nas-breadcrumb span { color: #6c757d; }
+    .nas-breadcrumb a {
+      color: #007bff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .nas-breadcrumb a:hover { text-decoration: underline; }
+
+    .nas-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--hb-border-color, #dee2e6);
+      border-radius: 5px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .nas-item:hover { background: var(--hb-card-background, #f8f9fa); }
+    .nas-item.selected { background: #007bff; color: white; border-color: #007bff; }
+    .nas-item-icon {
+      width: 24px;
+      margin-right: 10px;
+      text-align: center;
+      font-size: 16px;
+    }
+    .nas-item-name { flex: 1; }
+    .nas-loading {
+      text-align: center;
+      padding: 30px;
+      color: #6c757d;
+    }
   </style>
 </head>
 <body>
@@ -233,6 +322,30 @@
     <div id="noDevices" class="no-devices" style="display: none;">
       <p>Keine Geräte konfiguriert.</p>
       <p>Klicke auf "Netzwerk scannen" um Geräte zu finden.</p>
+    </div>
+  </div>
+
+  <!-- NAS Browser Modal -->
+  <div id="nasBrowserModal" class="modal-overlay" onclick="if(event.target===this)closeNasBrowser()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>NAS/DLNA durchsuchen</h3>
+        <button class="modal-close" onclick="closeNasBrowser()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="nasServerSelect" class="form-group">
+          <label>Media Server auswählen</label>
+          <select id="nasServerDropdown" onchange="onServerSelect(this.value)">
+            <option value="">-- Server laden --</option>
+          </select>
+        </div>
+        <div id="nasBreadcrumb" class="nas-breadcrumb"></div>
+        <div id="nasContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeNasBrowser()">Abbrechen</button>
+        <button id="nasSelectBtn" class="btn btn-success" onclick="selectNasItem()" disabled>Auswählen</button>
+      </div>
     </div>
   </div>
 
@@ -406,7 +519,7 @@
                 <option value="spotify" ${preset.type === 'spotify' ? 'selected' : ''}>Spotify</option>
                 <option value="amazon" ${preset.type === 'amazon' ? 'selected' : ''}>Amazon Music</option>
                 <option value="deezer" ${preset.type === 'deezer' ? 'selected' : ''}>Deezer</option>
-                <option value="tunein" ${preset.type === 'tunein' ? 'selected' : ''}>TuneIn</option>
+                <option value="nas" ${preset.type === 'nas' ? 'selected' : ''}>NAS/DLNA</option>
               </select>
             </div>
           </div>
@@ -422,7 +535,7 @@
               <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:...">
             </div>
           ` : ''}
-          ${['tunein', 'amazon', 'deezer'].includes(preset.type) ? `
+          ${['amazon', 'deezer'].includes(preset.type) ? `
             <div class="form-group">
               <label>Content ID</label>
               <input type="text" value="${preset.contentId || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'contentId', this.value)">
@@ -432,6 +545,16 @@
             <div class="form-group">
               <label>Account</label>
               <input type="text" value="${preset.sourceAccount || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'sourceAccount', this.value)">
+            </div>
+          ` : ''}
+          ${preset.type === 'nas' ? `
+            <div class="form-group">
+              <label>NAS Ordner/Album</label>
+              <div style="display: flex; gap: 10px;">
+                <input type="text" value="${preset.nasLocation ? (preset.name || 'Ausgewählt') : ''}" readonly placeholder="Noch nicht ausgewählt" style="flex: 1; background: #f8f9fa;">
+                <button class="btn btn-primary" onclick="openNasBrowser(${deviceIndex}, ${pi})">Durchsuchen</button>
+              </div>
+              <small>Server: ${preset.nasServer || 'Nicht gesetzt'}</small>
             </div>
           ` : ''}
         </div>
@@ -592,6 +715,187 @@
       if (type === 'success') {
         setTimeout(() => { el.classList.remove('show'); }, 3000);
       }
+    }
+
+    // NAS Browser functions
+    let nasBrowserState = {
+      deviceIndex: null,
+      presetIndex: null,
+      host: null,
+      servers: [],
+      currentServer: null,
+      currentPath: [],
+      items: [],
+      selectedItem: null
+    };
+
+    async function openNasBrowser(deviceIndex, presetIndex) {
+      nasBrowserState.deviceIndex = deviceIndex;
+      nasBrowserState.presetIndex = presetIndex;
+      nasBrowserState.host = config.devices[deviceIndex].host;
+      nasBrowserState.currentPath = [];
+      nasBrowserState.selectedItem = null;
+      nasBrowserState.currentServer = null;
+
+      document.getElementById('nasBrowserModal').classList.add('show');
+      document.getElementById('nasContent').innerHTML = '<div class="nas-loading">Lade Media Server...</div>';
+      document.getElementById('nasBreadcrumb').innerHTML = '';
+      document.getElementById('nasSelectBtn').disabled = true;
+
+      // Load media servers
+      try {
+        const response = await homebridge.request('/getMediaServers', { host: nasBrowserState.host });
+        nasBrowserState.servers = response.servers || [];
+
+        if (nasBrowserState.servers.length === 0) {
+          document.getElementById('nasContent').innerHTML = '<p style="color: #dc3545;">Keine DLNA Media Server gefunden. Stelle sicher, dass ein DLNA-Server (z.B. MiniDLNA) im Netzwerk läuft.</p>';
+          return;
+        }
+
+        // Populate server dropdown
+        const dropdown = document.getElementById('nasServerDropdown');
+        dropdown.innerHTML = '<option value="">-- Server auswählen --</option>' +
+          nasBrowserState.servers.map(s => `<option value="${s.id}">${s.name} (${s.ip})</option>`).join('');
+
+        document.getElementById('nasContent').innerHTML = '<p style="color: #6c757d;">Wähle oben einen Media Server aus, um dessen Inhalte zu durchsuchen.</p>';
+
+      } catch (error) {
+        document.getElementById('nasContent').innerHTML = `<p style="color: #dc3545;">Fehler: ${error.message}</p>`;
+      }
+    }
+
+    async function onServerSelect(serverId) {
+      if (!serverId) {
+        document.getElementById('nasContent').innerHTML = '<p style="color: #6c757d;">Wähle oben einen Media Server aus.</p>';
+        return;
+      }
+
+      nasBrowserState.currentServer = nasBrowserState.servers.find(s => s.id === serverId);
+      nasBrowserState.currentPath = [];
+      nasBrowserState.selectedItem = null;
+
+      await loadNasContent();
+    }
+
+    async function loadNasContent(location) {
+      document.getElementById('nasContent').innerHTML = '<div class="nas-loading">Lade...</div>';
+      document.getElementById('nasSelectBtn').disabled = true;
+
+      try {
+        const response = await homebridge.request('/browseNas', {
+          host: nasBrowserState.host,
+          serverId: nasBrowserState.currentServer.id,
+          location: location || null
+        });
+
+        if (response.error) {
+          document.getElementById('nasContent').innerHTML = `<p style="color: #dc3545;">Fehler: ${response.error}</p>`;
+          return;
+        }
+
+        nasBrowserState.items = response.items || [];
+        renderNasContent();
+        renderNasBreadcrumb();
+
+      } catch (error) {
+        document.getElementById('nasContent').innerHTML = `<p style="color: #dc3545;">Fehler: ${error.message}</p>`;
+      }
+    }
+
+    function renderNasBreadcrumb() {
+      const bc = document.getElementById('nasBreadcrumb');
+      let html = `<a onclick="navigateNasTo(-1)">${nasBrowserState.currentServer?.name || 'Root'}</a>`;
+
+      nasBrowserState.currentPath.forEach((item, i) => {
+        html += ` <span>/</span> <a onclick="navigateNasTo(${i})">${item.name}</a>`;
+      });
+
+      bc.innerHTML = html;
+    }
+
+    function renderNasContent() {
+      const content = document.getElementById('nasContent');
+
+      if (nasBrowserState.items.length === 0) {
+        content.innerHTML = '<p style="color: #6c757d;">Keine Einträge gefunden.</p>';
+        return;
+      }
+
+      content.innerHTML = nasBrowserState.items.map((item, i) => `
+        <div class="nas-item ${nasBrowserState.selectedItem === i ? 'selected' : ''}"
+             onclick="handleNasItemClick(${i})"
+             ondblclick="handleNasItemDblClick(${i})">
+          <span class="nas-item-icon">${item.type === 'dir' ? '📁' : '🎵'}</span>
+          <span class="nas-item-name">${item.name}</span>
+          ${item.type === 'dir' ? '<span style="color: #6c757d;">›</span>' : ''}
+        </div>
+      `).join('');
+    }
+
+    function handleNasItemClick(index) {
+      nasBrowserState.selectedItem = index;
+      renderNasContent();
+
+      // Enable select button only for directories (albums/folders)
+      const item = nasBrowserState.items[index];
+      document.getElementById('nasSelectBtn').disabled = item.type !== 'dir';
+    }
+
+    function handleNasItemDblClick(index) {
+      const item = nasBrowserState.items[index];
+      if (item.type === 'dir') {
+        // Navigate into folder
+        nasBrowserState.currentPath.push({ name: item.name, location: item.location });
+        nasBrowserState.selectedItem = null;
+        loadNasContent(item.location);
+      }
+    }
+
+    async function navigateNasTo(pathIndex) {
+      if (pathIndex < 0) {
+        // Go to root
+        nasBrowserState.currentPath = [];
+        nasBrowserState.selectedItem = null;
+        await loadNasContent();
+      } else {
+        // Navigate to specific path level
+        nasBrowserState.currentPath = nasBrowserState.currentPath.slice(0, pathIndex + 1);
+        nasBrowserState.selectedItem = null;
+        const location = nasBrowserState.currentPath[pathIndex]?.location;
+        await loadNasContent(location);
+      }
+    }
+
+    function selectNasItem() {
+      if (nasBrowserState.selectedItem === null) return;
+
+      const item = nasBrowserState.items[nasBrowserState.selectedItem];
+      const { deviceIndex, presetIndex } = nasBrowserState;
+
+      // Update preset with NAS info
+      config.devices[deviceIndex].presets[presetIndex].nasLocation = item.location;
+      config.devices[deviceIndex].presets[presetIndex].nasServer = `${nasBrowserState.currentServer.id}/0`;
+      config.devices[deviceIndex].presets[presetIndex].name = item.name;
+
+      saveConfig();
+      render();
+      closeNasBrowser();
+
+      showStatus(`NAS-Ordner "${item.name}" ausgewählt!`, 'success');
+    }
+
+    function closeNasBrowser() {
+      document.getElementById('nasBrowserModal').classList.remove('show');
+      nasBrowserState = {
+        deviceIndex: null,
+        presetIndex: null,
+        host: null,
+        servers: [],
+        currentServer: null,
+        currentPath: [],
+        items: [],
+        selectedItem: null
+      };
     }
   </script>
 </body>

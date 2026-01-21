@@ -105,7 +105,7 @@
                       { "title": "Spotify", "enum": ["spotify"] },
                       { "title": "Amazon Music", "enum": ["amazon"] },
                       { "title": "Deezer", "enum": ["deezer"] },
-                      { "title": "TuneIn", "enum": ["tunein"] }
+                      { "title": "NAS/DLNA", "enum": ["nas"] }
                     ],
                     "description": "Art der Quelle"
                   },
@@ -122,12 +122,22 @@
                   "contentId": {
                     "title": "Content ID",
                     "type": "string",
-                    "description": "Content ID für TuneIn, Amazon oder Deezer"
+                    "description": "Content ID für Amazon oder Deezer"
                   },
                   "sourceAccount": {
                     "title": "Account",
                     "type": "string",
-                    "description": "Account-Identifier für Spotify/Amazon/Deezer"
+                    "description": "Account-Identifier für Spotify/Amazon/Deezer/NAS"
+                  },
+                  "nasLocation": {
+                    "title": "NAS Location",
+                    "type": "string",
+                    "description": "DLNA Object-ID für NAS-Ordner (wird über Browser ausgewählt)"
+                  },
+                  "nasServer": {
+                    "title": "NAS Server",
+                    "type": "string",
+                    "description": "DLNA Server-ID (wird automatisch gesetzt)"
                   }
                 }
               }
@@ -231,7 +241,7 @@
                     {
                       "key": "devices[].presets[].contentId",
                       "condition": {
-                        "functionBody": "try { return ['tunein', 'amazon', 'deezer'].includes(model.devices[arrayIndices[0]].presets[arrayIndices[1]].type); } catch(e) { return false; }"
+                        "functionBody": "try { return ['amazon', 'deezer'].includes(model.devices[arrayIndices[0]].presets[arrayIndices[1]].type); } catch(e) { return false; }"
                       }
                     },
                     {

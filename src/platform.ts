@@ -16,11 +16,13 @@ import { SoundTouchDiscovery, DiscoveredDevice } from './discovery';
 export interface PresetConfig {
   slot: number;  // 1-6
   name: string;
-  type: 'radio' | 'spotify' | 'amazon' | 'deezer' | 'tunein';
+  type: 'radio' | 'spotify' | 'amazon' | 'deezer' | 'tunein' | 'nas';
   url?: string;              // For radio streams (http URLs)
   spotifyUri?: string;       // For Spotify (spotify:playlist:xxx, spotify:album:xxx)
   contentId?: string;        // For TuneIn, Amazon, Deezer
   sourceAccount?: string;    // Account identifier for streaming services
+  nasLocation?: string;      // For NAS/DLNA: DLNA Object-ID
+  nasServer?: string;        // For NAS/DLNA: Server-ID + "/0"
 }
 
 // Device configuration with individual presets and icon

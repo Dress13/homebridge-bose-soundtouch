@@ -392,6 +392,18 @@ export class SoundTouchAccessory {
         }
         break;
 
+      case 'nas':
+        if (config.nasLocation && config.nasServer) {
+          await this.client.playStoredMusic(config.nasLocation, config.nasServer, config.name);
+          await this.client.storePreset(config.slot, {
+            source: 'STORED_MUSIC',
+            location: config.nasLocation,
+            sourceAccount: config.nasServer,
+            name: config.name,
+          });
+        }
+        break;
+
       default:
         this.platform.log.warn(`Unknown preset type: ${config.type}`);
     }
