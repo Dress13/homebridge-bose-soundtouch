@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bose SoundTouch</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
+
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: var(--hb-card-background, #f8f9fa);
+      border-radius: 8px;
+      border: 1px solid var(--hb-border-color, #dee2e6);
+    }
+
+    h3 { margin: 0 0 15px 0; font-size: 18px; }
+    h4 { margin: 0 0 10px 0; font-size: 16px; }
+
+    .scan-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-success:hover { background: #1e7e34; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-danger:hover { background: #c82333; }
+    .btn:disabled { background: #6c757d; cursor: not-allowed; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid #ffffff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+    .btn.loading .spinner { display: inline-block; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .status-msg {
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-top: 10px;
+      display: none;
+    }
+    .status-msg.show { display: block; }
+    .status-msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status-msg.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .status-msg.info { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid var(--hb-border-color, #dee2e6);
+      padding-bottom: 10px;
+    }
+    .tab {
+      padding: 8px 16px;
+      background: var(--hb-card-background, #e9ecef);
+      border: 1px solid var(--hb-border-color, #dee2e6);
+      border-radius: 5px 5px 0 0;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .tab:hover { background: #dee2e6; }
+    .tab.active {
+      background: #007bff;
+      color: white;
+      border-color: #007bff;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--hb-border-color, #ced4da);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+    .form-group small {
+      display: block;
+      margin-top: 4px;
+      color: #6c757d;
+      font-size: 12px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 15px;
+    }
+    .form-row .form-group { flex: 1; }
+
+    /* Device card */
+    .device-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--hb-border-color, #dee2e6);
+    }
+    .device-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .device-ip {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    /* Presets */
+    .presets-section {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid var(--hb-border-color, #dee2e6);
+    }
+    .preset-item {
+      background: var(--hb-card-background, #f8f9fa);
+      border: 1px solid var(--hb-border-color, #dee2e6);
+      border-radius: 5px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .preset-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .preset-title { font-weight: 500; }
+    .preset-remove {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    /* No devices */
+    .no-devices {
+      text-align: center;
+      padding: 40px;
+      color: #6c757d;
+    }
+
+    /* Discovered devices list */
+    .discovered-list {
+      margin-top: 15px;
+    }
+    .discovered-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      background: var(--hb-card-background, #fff);
+      border: 1px solid var(--hb-border-color, #dee2e6);
+      border-radius: 5px;
+      margin-bottom: 8px;
+    }
+    .discovered-info { display: flex; flex-direction: column; }
+    .discovered-name { font-weight: 500; }
+    .discovered-host { font-size: 12px; color: #6c757d; }
+  </style>
+</head>
+<body>
+  <!-- Scan Section -->
+  <div class="section">
+    <div class="scan-section">
+      <button id="scanBtn" class="btn btn-primary" onclick="startScan()">
+        <span class="spinner"></span>
+        <span class="btn-text">Netzwerk scannen</span>
+      </button>
+      <span style="color: #6c757d; font-size: 14px;">Findet alle SoundTouch-Geräte im Netzwerk</span>
+    </div>
+    <div id="statusMsg" class="status-msg"></div>
+    <div id="discoveredList" class="discovered-list"></div>
+  </div>
+
+  <!-- Global Settings -->
+  <div class="section">
+    <h4>Globale Einstellungen</h4>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="autoDiscover" onchange="saveConfig()"> Automatische Erkennung beim Start
+      </label>
+      <small>Geräte werden automatisch gefunden, auch ohne manuelle Konfiguration</small>
+    </div>
+  </div>
+
+  <!-- Devices Section -->
+  <div class="section">
+    <h3>Geräte</h3>
+    <div id="deviceTabs" class="tabs"></div>
+    <div id="deviceContents"></div>
+    <div id="noDevices" class="no-devices" style="display: none;">
+      <p>Keine Geräte konfiguriert.</p>
+      <p>Klicke auf "Netzwerk scannen" um Geräte zu finden.</p>
+    </div>
+  </div>
+
+  <script>
+    let config = { devices: [] };
+    let activeTab = 0;
+    let discoveredDevices = [];
+
+    // Initialize
+    (async () => {
+      await loadConfig();
+      render();
+    })();
+
+    async function loadConfig() {
+      try {
+        const configs = await homebridge.getPluginConfig();
+        if (configs && configs.length > 0) {
+          config = configs[0];
+        }
+      } catch (e) {
+        console.error('Failed to load config:', e);
+      }
+
+      // Ensure defaults
+      if (!config.devices) config.devices = [];
+      if (!config.platform) config.platform = 'BoseSoundTouch';
+      if (!config.name) config.name = 'Bose SoundTouch';
+
+      // Clean up: Remove devices without host
+      config.devices = config.devices.filter(d => d.host && d.host.trim());
+
+      // Clean up: Remove empty presets
+      config.devices.forEach(device => {
+        if (device.presets) {
+          device.presets = device.presets.filter(p => p.slot && p.name);
+        }
+      });
+    }
+
+    async function saveConfig() {
+      // Update global settings
+      config.autoDiscover = document.getElementById('autoDiscover').checked;
+
+      // Clean up old volumeAsLightbulb setting if present
+      delete config.volumeAsLightbulb;
+
+      try {
+        await homebridge.updatePluginConfig([config]);
+        await homebridge.savePluginConfig();
+        showStatus('Konfiguration gespeichert!', 'success');
+      } catch (e) {
+        showStatus('Fehler beim Speichern: ' + e.message, 'error');
+      }
+    }
+
+    function render() {
+      // Global settings
+      document.getElementById('autoDiscover').checked = config.autoDiscover !== false;
+
+      const tabsContainer = document.getElementById('deviceTabs');
+      const contentsContainer = document.getElementById('deviceContents');
+      const noDevices = document.getElementById('noDevices');
+
+      if (config.devices.length === 0) {
+        tabsContainer.innerHTML = '';
+        contentsContainer.innerHTML = '';
+        noDevices.style.display = 'block';
+        return;
+      }
+
+      noDevices.style.display = 'none';
+
+      // Render tabs
+      tabsContainer.innerHTML = config.devices.map((device, i) => `
+        <div class="tab ${i === activeTab ? 'active' : ''}" onclick="switchTab(${i})">
+          ${device.name || device.host}
+        </div>
+      `).join('');
+
+      // Render contents
+      contentsContainer.innerHTML = config.devices.map((device, i) => `
+        <div class="tab-content ${i === activeTab ? 'active' : ''}" id="device-${i}">
+          <div class="device-header">
+            <div>
+              <div class="device-title">${device.name || 'Unbenannt'}</div>
+              <div class="device-ip">${device.host}</div>
+            </div>
+            <button class="btn btn-danger" onclick="removeDevice(${i})">Gerät entfernen</button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>IP-Adresse</label>
+              <input type="text" value="${device.host || ''}" onchange="updateDevice(${i}, 'host', this.value)">
+            </div>
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" value="${device.name || ''}" onchange="updateDevice(${i}, 'name', this.value)" placeholder="Automatisch vom Gerät">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Raum</label>
+              <input type="text" value="${device.room || ''}" onchange="updateDevice(${i}, 'room', this.value)" placeholder="Optional">
+            </div>
+            <div class="form-group">
+              <label>Geräte-Icon</label>
+              <select onchange="updateDevice(${i}, 'deviceIcon', parseInt(this.value))">
+                <option value="34" ${device.deviceIcon === 34 || !device.deviceIcon ? 'selected' : ''}>Audio Receiver</option>
+                <option value="26" ${device.deviceIcon === 26 ? 'selected' : ''}>Speaker (Lautsprecher)</option>
+                <option value="31" ${device.deviceIcon === 31 ? 'selected' : ''}>Television (TV)</option>
+                <option value="35" ${device.deviceIcon === 35 ? 'selected' : ''}>TV Set Top Box</option>
+                <option value="36" ${device.deviceIcon === 36 ? 'selected' : ''}>TV Streaming Stick</option>
+                <option value="38" ${device.deviceIcon === 38 ? 'selected' : ''}>AirPlay Speaker</option>
+                <option value="39" ${device.deviceIcon === 39 ? 'selected' : ''}>HomePod</option>
+                <option value="27" ${device.deviceIcon === 27 ? 'selected' : ''}>Airport</option>
+                <option value="5" ${device.deviceIcon === 5 ? 'selected' : ''}>Lightbulb</option>
+                <option value="8" ${device.deviceIcon === 8 ? 'selected' : ''}>Switch</option>
+                <option value="7" ${device.deviceIcon === 7 ? 'selected' : ''}>Outlet</option>
+                <option value="3" ${device.deviceIcon === 3 ? 'selected' : ''}>Fan</option>
+                <option value="1" ${device.deviceIcon === 1 ? 'selected' : ''}>Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="presets-section">
+            <h4>Preset-Tasten belegen</h4>
+            <small style="display: block; margin-bottom: 15px; color: #6c757d;">
+              Hier kannst du eigene Radiosender oder Streaming-Inhalte auf die Preset-Tasten 1-6 legen.
+              Diese werden nach dem TuneIn-Ende (Mai 2026) weiterhin funktionieren.
+            </small>
+            <div id="presets-${i}">
+              ${renderPresets(device, i)}
+            </div>
+            <button class="btn btn-success" onclick="addPreset(${i})" style="margin-top: 10px;">
+              + Preset hinzufügen
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPresets(device, deviceIndex) {
+      if (!device.presets || device.presets.length === 0) {
+        return '<p style="color: #6c757d; font-style: italic;">Keine Presets konfiguriert. Die vorhandenen Presets vom Gerät werden verwendet.</p>';
+      }
+
+      return device.presets.map((preset, pi) => `
+        <div class="preset-item">
+          <div class="preset-header">
+            <span class="preset-title">Preset ${preset.slot || '?'}: ${preset.name || 'Unbenannt'}</span>
+            <button class="preset-remove" onclick="removePreset(${deviceIndex}, ${pi})">×</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Taste (1-6)</label>
+              <select onchange="updatePreset(${deviceIndex}, ${pi}, 'slot', parseInt(this.value))">
+                ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${preset.slot === n ? 'selected' : ''}>${n}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" value="${preset.name || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'name', this.value)" placeholder="z.B. SWR3">
+            </div>
+            <div class="form-group">
+              <label>Typ</label>
+              <select onchange="updatePreset(${deviceIndex}, ${pi}, 'type', this.value)">
+                <option value="radio" ${preset.type === 'radio' ? 'selected' : ''}>Internet Radio (HTTP)</option>
+                <option value="spotify" ${preset.type === 'spotify' ? 'selected' : ''}>Spotify</option>
+                <option value="amazon" ${preset.type === 'amazon' ? 'selected' : ''}>Amazon Music</option>
+                <option value="deezer" ${preset.type === 'deezer' ? 'selected' : ''}>Deezer</option>
+                <option value="tunein" ${preset.type === 'tunein' ? 'selected' : ''}>TuneIn</option>
+              </select>
+            </div>
+          </div>
+          ${preset.type === 'radio' ? `
+            <div class="form-group">
+              <label>Stream URL</label>
+              <input type="text" value="${preset.url || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'url', this.value)" placeholder="http://...">
+            </div>
+          ` : ''}
+          ${preset.type === 'spotify' ? `
+            <div class="form-group">
+              <label>Spotify URI</label>
+              <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:...">
+            </div>
+          ` : ''}
+          ${['tunein', 'amazon', 'deezer'].includes(preset.type) ? `
+            <div class="form-group">
+              <label>Content ID</label>
+              <input type="text" value="${preset.contentId || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'contentId', this.value)">
+            </div>
+          ` : ''}
+          ${['spotify', 'amazon', 'deezer'].includes(preset.type) ? `
+            <div class="form-group">
+              <label>Account</label>
+              <input type="text" value="${preset.sourceAccount || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'sourceAccount', this.value)">
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function switchTab(index) {
+      activeTab = index;
+      render();
+    }
+
+    function updateDevice(index, field, value) {
+      config.devices[index][field] = value;
+      saveConfig();
+      render();
+    }
+
+    function removeDevice(index) {
+      if (confirm('Gerät "' + (config.devices[index].name || config.devices[index].host) + '" wirklich entfernen?')) {
+        config.devices.splice(index, 1);
+        if (activeTab >= config.devices.length) activeTab = Math.max(0, config.devices.length - 1);
+        saveConfig();
+        render();
+      }
+    }
+
+    function addPreset(deviceIndex) {
+      if (!config.devices[deviceIndex].presets) {
+        config.devices[deviceIndex].presets = [];
+      }
+      // Find next free slot
+      const usedSlots = config.devices[deviceIndex].presets.map(p => p.slot);
+      let nextSlot = 1;
+      for (let i = 1; i <= 6; i++) {
+        if (!usedSlots.includes(i)) { nextSlot = i; break; }
+      }
+      config.devices[deviceIndex].presets.push({ slot: nextSlot, name: '', type: 'radio' });
+      saveConfig();
+      render();
+    }
+
+    function updatePreset(deviceIndex, presetIndex, field, value) {
+      config.devices[deviceIndex].presets[presetIndex][field] = value;
+      saveConfig();
+      render();
+    }
+
+    function removePreset(deviceIndex, presetIndex) {
+      config.devices[deviceIndex].presets.splice(presetIndex, 1);
+      saveConfig();
+      render();
+    }
+
+    async function startScan() {
+      const btn = document.getElementById('scanBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+      btn.querySelector('.btn-text').textContent = 'Scanne...';
+
+      showStatus('Suche SoundTouch-Geräte im Netzwerk... (ca. 10 Sekunden)', 'info');
+      document.getElementById('discoveredList').innerHTML = '';
+
+      try {
+        const response = await homebridge.request('/discover');
+        discoveredDevices = response || [];
+
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        btn.querySelector('.btn-text').textContent = 'Netzwerk scannen';
+
+        if (discoveredDevices.length === 0) {
+          showStatus('Keine Geräte gefunden. Stelle sicher, dass die Geräte eingeschaltet sind.', 'error');
+          return;
+        }
+
+        showStatus(`${discoveredDevices.length} Gerät(e) gefunden!`, 'success');
+        renderDiscoveredDevices();
+
+      } catch (error) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        btn.querySelector('.btn-text').textContent = 'Netzwerk scannen';
+        showStatus('Fehler beim Scannen: ' + (error.message || 'Unbekannt'), 'error');
+      }
+    }
+
+    function renderDiscoveredDevices() {
+      const list = document.getElementById('discoveredList');
+
+      list.innerHTML = discoveredDevices.map((device, i) => {
+        const exists = config.devices.some(d => d.host === device.host);
+        return `
+          <div class="discovered-item">
+            <div class="discovered-info">
+              <span class="discovered-name">${device.name}</span>
+              <span class="discovered-host">${device.host}</span>
+            </div>
+            <button class="btn ${exists ? '' : 'btn-success'}" onclick="addDevice(${i})" ${exists ? 'disabled' : ''}>
+              ${exists ? 'Bereits vorhanden' : 'Hinzufügen'}
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      // Add "Add all" button
+      const notAdded = discoveredDevices.filter(d => !config.devices.some(c => c.host === d.host));
+      if (notAdded.length > 1) {
+        list.innerHTML += `
+          <button class="btn btn-primary" onclick="addAllDevices()" style="margin-top: 10px; width: 100%;">
+            Alle ${notAdded.length} neuen Geräte hinzufügen
+          </button>
+        `;
+      }
+    }
+
+    function addDevice(index) {
+      const device = discoveredDevices[index];
+      if (!device || config.devices.some(d => d.host === device.host)) return;
+
+      config.devices.push({
+        host: device.host,
+        name: device.name,
+        deviceIcon: 34
+      });
+
+      activeTab = config.devices.length - 1;
+      saveConfig();
+      render();
+      renderDiscoveredDevices();
+    }
+
+    function addAllDevices() {
+      let added = 0;
+      for (const device of discoveredDevices) {
+        if (!config.devices.some(d => d.host === device.host)) {
+          config.devices.push({
+            host: device.host,
+            name: device.name,
+            deviceIcon: 34
+          });
+          added++;
+        }
+      }
+
+      if (added > 0) {
+        activeTab = config.devices.length - 1;
+        saveConfig();
+        render();
+        renderDiscoveredDevices();
+        showStatus(`${added} Gerät(e) hinzugefügt!`, 'success');
+      }
+    }
+
+    function showStatus(msg, type) {
+      const el = document.getElementById('statusMsg');
+      el.textContent = msg;
+      el.className = 'status-msg show ' + type;
+      if (type === 'success') {
+        setTimeout(() => { el.classList.remove('show'); }, 3000);
+      }
+    }
+  </script>
+</body>
+</html>

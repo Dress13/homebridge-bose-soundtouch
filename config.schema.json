@@ -1,0 +1,252 @@
+{
+  "pluginAlias": "BoseSoundTouch",
+  "pluginType": "platform",
+  "singular": true,
+  "customUi": true,
+  "headerDisplay": "Homebridge Plugin für Bose SoundTouch Lautsprecher - Mit Custom Radio & Streaming Stationen.",
+  "footerDisplay": "Weitere Informationen: [GitHub](https://github.com/Dress13/homebridge-bose-soundtouch)",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Bose SoundTouch",
+        "required": true
+      },
+      "autoDiscover": {
+        "title": "Automatische Erkennung",
+        "type": "boolean",
+        "default": true,
+        "description": "SoundTouch-Geräte automatisch im Netzwerk finden"
+      },
+      "discoveryTimeout": {
+        "title": "Discovery Timeout (ms)",
+        "type": "integer",
+        "default": 10000,
+        "minimum": 1000,
+        "maximum": 60000,
+        "description": "Timeout für die automatische Geräteerkennung"
+      },
+      "devices": {
+        "title": "Geräte",
+        "description": "Geräte werden automatisch erkannt. Hier kannst du pro Gerät Icon und Presets konfigurieren.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "title": "IP-Adresse",
+              "type": "string",
+              "required": true,
+              "format": "ipv4",
+              "description": "IP-Adresse des SoundTouch-Geräts"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "description": "Anzeigename (optional, wird automatisch vom Gerät gelesen)"
+            },
+            "room": {
+              "title": "Raum",
+              "type": "string",
+              "description": "Raum-Zuordnung (optional)"
+            },
+            "deviceIcon": {
+              "title": "Geräte-Icon",
+              "type": "integer",
+              "default": 34,
+              "oneOf": [
+                { "title": "Audio Receiver", "enum": [34] },
+                { "title": "Speaker (Lautsprecher)", "enum": [26] },
+                { "title": "Television (TV)", "enum": [31] },
+                { "title": "TV Set Top Box", "enum": [35] },
+                { "title": "TV Streaming Stick", "enum": [36] },
+                { "title": "AirPlay Speaker", "enum": [38] },
+                { "title": "HomePod", "enum": [39] },
+                { "title": "Airport", "enum": [27] },
+                { "title": "Lightbulb", "enum": [5] },
+                { "title": "Switch", "enum": [8] },
+                { "title": "Outlet", "enum": [7] },
+                { "title": "Fan", "enum": [3] },
+                { "title": "Other", "enum": [1] }
+              ],
+              "description": "Icon für dieses Gerät in der Home App"
+            },
+            "presets": {
+              "title": "Preset-Belegung",
+              "description": "Belege die 6 Preset-Tasten mit eigenen Sendern",
+              "type": "array",
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slot": {
+                    "title": "Preset-Taste",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6,
+                    "required": true,
+                    "description": "Welche Preset-Taste (1-6)"
+                  },
+                  "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "required": true,
+                    "description": "Anzeigename in HomeKit"
+                  },
+                  "type": {
+                    "title": "Typ",
+                    "type": "string",
+                    "required": true,
+                    "default": "radio",
+                    "oneOf": [
+                      { "title": "Internet Radio (HTTP Stream)", "enum": ["radio"] },
+                      { "title": "Spotify", "enum": ["spotify"] },
+                      { "title": "Amazon Music", "enum": ["amazon"] },
+                      { "title": "Deezer", "enum": ["deezer"] },
+                      { "title": "TuneIn", "enum": ["tunein"] }
+                    ],
+                    "description": "Art der Quelle"
+                  },
+                  "url": {
+                    "title": "Stream URL",
+                    "type": "string",
+                    "description": "HTTP Stream URL für Radio"
+                  },
+                  "spotifyUri": {
+                    "title": "Spotify URI",
+                    "type": "string",
+                    "description": "Spotify URI (z.B. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)"
+                  },
+                  "contentId": {
+                    "title": "Content ID",
+                    "type": "string",
+                    "description": "Content ID für TuneIn, Amazon oder Deezer"
+                  },
+                  "sourceAccount": {
+                    "title": "Account",
+                    "type": "string",
+                    "description": "Account-Identifier für Spotify/Amazon/Deezer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    "name",
+    {
+      "type": "fieldset",
+      "title": "Automatische Erkennung",
+      "description": "Geräte werden beim Start automatisch im Netzwerk gefunden. Du kannst sie dann hier konfigurieren.",
+      "items": [
+        "autoDiscover",
+        "discoveryTimeout"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Geräte-Konfiguration",
+      "description": "Füge hier deine SoundTouch-Geräte hinzu (IP-Adresse). Pro Gerät kannst du das Icon und die Preset-Tasten individuell konfigurieren.",
+      "expandable": true,
+      "expanded": true,
+      "items": [
+        {
+          "key": "devices",
+          "type": "array",
+          "buttonText": "Gerät hinzufügen",
+          "items": [
+            {
+              "type": "div",
+              "displayFlex": true,
+              "items": [
+                {
+                  "key": "devices[].host",
+                  "flex": "1 1 150px"
+                },
+                {
+                  "key": "devices[].name",
+                  "flex": "1 1 150px"
+                }
+              ]
+            },
+            {
+              "type": "div",
+              "displayFlex": true,
+              "items": [
+                {
+                  "key": "devices[].room",
+                  "flex": "1 1 150px"
+                },
+                {
+                  "key": "devices[].deviceIcon",
+                  "flex": "1 1 150px"
+                }
+              ]
+            },
+            {
+              "type": "fieldset",
+              "title": "Preset-Tasten belegen",
+              "expandable": true,
+              "items": [
+                {
+                  "key": "devices[].presets",
+                  "type": "array",
+                  "buttonText": "Preset hinzufügen",
+                  "items": [
+                    {
+                      "type": "div",
+                      "displayFlex": true,
+                      "items": [
+                        {
+                          "key": "devices[].presets[].slot",
+                          "flex": "0 0 80px"
+                        },
+                        {
+                          "key": "devices[].presets[].name",
+                          "flex": "1 1 150px"
+                        },
+                        {
+                          "key": "devices[].presets[].type",
+                          "flex": "1 1 150px"
+                        }
+                      ]
+                    },
+                    {
+                      "key": "devices[].presets[].url",
+                      "condition": {
+                        "functionBody": "try { return model.devices[arrayIndices[0]].presets[arrayIndices[1]].type === 'radio'; } catch(e) { return false; }"
+                      }
+                    },
+                    {
+                      "key": "devices[].presets[].spotifyUri",
+                      "condition": {
+                        "functionBody": "try { return model.devices[arrayIndices[0]].presets[arrayIndices[1]].type === 'spotify'; } catch(e) { return false; }"
+                      }
+                    },
+                    {
+                      "key": "devices[].presets[].contentId",
+                      "condition": {
+                        "functionBody": "try { return ['tunein', 'amazon', 'deezer'].includes(model.devices[arrayIndices[0]].presets[arrayIndices[1]].type); } catch(e) { return false; }"
+                      }
+                    },
+                    {
+                      "key": "devices[].presets[].sourceAccount",
+                      "condition": {
+                        "functionBody": "try { return ['spotify', 'amazon', 'deezer'].includes(model.devices[arrayIndices[0]].presets[arrayIndices[1]].type); } catch(e) { return false; }"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

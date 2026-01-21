@@ -1,0 +1,52 @@
+{
+  "name": "homebridge-bose-soundtouch",
+  "version": "1.8.6",
+  "description": "Homebridge plugin for Bose SoundTouch speakers with custom radio stations and streaming support",
+  "main": "dist/index.js",
+  "scripts": {
+    "lint": "eslint src/**.ts --max-warnings=0",
+    "watch": "npm run build && npm link && nodemon",
+    "build": "rimraf ./dist && tsc",
+    "prepublishOnly": "npm run lint && npm run build"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "bose",
+    "soundtouch",
+    "speaker",
+    "audio",
+    "multiroom"
+  ],
+  "author": "Daniel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dress13/homebridge-bose-soundtouch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dress13/homebridge-bose-soundtouch/issues"
+  },
+  "engines": {
+    "node": "^18.17.0 || ^20.9.0 || ^22 || ^24",
+    "homebridge": "^1.6.0 || ^2.0.0"
+  },
+  "dependencies": {
+    "@homebridge/plugin-ui-utils": "^1.0.3",
+    "bonjour-service": "^1.2.1",
+    "ws": "^8.16.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10",
+    "@types/xml2js": "^0.4.14",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "homebridge": "^1.7.0",
+    "nodemon": "^3.0.2",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3"
+  },
+  "homepage": "https://github.com/Dress13/homebridge-bose-soundtouch#readme"
+}
