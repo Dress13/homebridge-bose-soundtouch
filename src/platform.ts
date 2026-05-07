@@ -84,116 +84,122 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     // Track which config entries have been matched to a discovered device
     const matchedConfigs = new Set<DeviceConfig>();
 
-    // Auto-discover devices if enabled (default: true)
-    if (this.config.autoDiscover !== false) {
-      this.log.info('Starting mDNS discovery for SoundTouch devices...');
+    // Always run mDNS discovery to find current IPs for configured devices
+    this.log.info('Starting mDNS discovery for SoundTouch devices...');
+    this.discovery = new SoundTouchDiscovery();
+    const timeout = this.config.discoveryTimeout || 10000;
 
-      this.discovery = new SoundTouchDiscovery();
-      const timeout = this.config.discoveryTimeout || 10000;
-
-      try {
-        this.log.info(`mDNS discovery timeout: ${timeout}ms`);
-        const discovered = await this.discovery.discoverOnce(timeout);
-        this.log.info(`mDNS discovered ${discovered.length} device(s):`);
-        for (const d of discovered) {
-          this.log.info(`  - ${d.name} at ${d.host} (MAC: ${d.mac || 'unknown'})`);
-        }
-
-        // For each discovered device, identify it via API and match to config
-        await Promise.all(discovered.map(async (device) => {
-          const mac = device.mac?.toUpperCase();
-          if (mac) {
-            this.macToHost.set(mac, device.host);
-          }
-
-          // Try to identify the device via API to match against config
-          let deviceName: string | undefined;
-          let deviceMac: string | undefined;
-          try {
-            const client = new SoundTouchClient(device.host, 8090, 3000);
-            const info = await client.getInfo();
-            deviceName = info.name;
-            deviceMac = info.macAddress?.toUpperCase();
-            this.log.info(`  API identified ${device.host}: "${deviceName}" (MAC: ${deviceMac})`);
-          } catch (err) {
-            // Device not reachable via API - use mDNS name
-            deviceName = device.name;
-            this.log.info(`  API unreachable for ${device.host}, using mDNS name: "${deviceName}"`);
-          }
-
-          // Try to match against configured devices
-          const configMatch = this.config.devices?.find(d => {
-            if (matchedConfigs.has(d)) {
-              return false;
-            }
-            // Match by config name (user-configured name matches device API name)
-            if (d.name && deviceName && d.name === deviceName) {
-              return true;
-            }
-            // Match by original config host (IP hasn't changed)
-            if (d.host === device.host) {
-              return true;
-            }
-            return false;
-          });
-
-          if (configMatch) {
-            matchedConfigs.add(configMatch);
-            this.log.info(`Matched config "${configMatch.name}" -> ${device.host} (was ${configMatch.host})`);
-            devicesToRegister.set(device.host, {
-              config: { ...configMatch, host: device.host },
-              mac: deviceMac || mac,
-            });
-          } else {
-            this.log.info(`No config match for "${deviceName}" at ${device.host}, registering as new`);
-            devicesToRegister.set(device.host, {
-              config: { name: deviceName || device.name, host: device.host },
-              mac: deviceMac || mac,
-            });
-          }
-        }));
-      } catch (error) {
-        this.log.error('Discovery failed:', error);
+    try {
+      this.log.info(`mDNS discovery timeout: ${timeout}ms`);
+      const discovered = await this.discovery.discoverOnce(timeout);
+      this.log.info(`mDNS discovered ${discovered.length} device(s):`);
+      for (const d of discovered) {
+        this.log.info(`  - ${d.name} at ${d.host} (MAC: ${d.mac || 'unknown'})`);
       }
 
-      // Continue listening for new devices and IP changes
-      this.log.info('Starting continuous mDNS listener...');
-      this.discovery.start(
-        (device: DiscoveredDevice) => {
-          this.log.info(`mDNS device appeared: ${device.name} at ${device.host} (MAC: ${device.mac || 'unknown'})`);
-          // Check if we already have this device under a different IP (match by MAC)
-          const existing = device.mac ? this.findAccessoryByMac(device.mac) : undefined;
-          if (existing && existing.getHost() !== device.host) {
-            // IP changed - update the existing accessory
-            const oldHost = existing.getHost();
-            existing.updateHost(device.host);
-            this.soundTouchAccessories.delete(oldHost);
-            this.soundTouchAccessories.set(device.host, existing);
-            const oldPlatformAccessory = this.externalAccessories.get(oldHost);
-            if (oldPlatformAccessory) {
-              this.externalAccessories.delete(oldHost);
-              this.externalAccessories.set(device.host, oldPlatformAccessory);
-            }
-          } else if (!existing && !this.soundTouchAccessories.has(device.host)) {
+      // For each discovered device, identify it via API and match to config
+      await Promise.all(discovered.map(async (device) => {
+        const mac = device.mac?.toUpperCase();
+        if (mac) {
+          this.macToHost.set(mac, device.host);
+        }
+
+        // Try to identify the device via API to match against config
+        let deviceName: string | undefined;
+        let deviceMac: string | undefined;
+        try {
+          const client = new SoundTouchClient(device.host, 8090, 3000);
+          const info = await client.getInfo();
+          deviceName = info.name;
+          deviceMac = info.macAddress?.toUpperCase();
+          this.log.info(`  API identified ${device.host}: "${deviceName}" (MAC: ${deviceMac})`);
+        } catch {
+          // Device not reachable via API - use mDNS name
+          deviceName = device.name;
+          this.log.info(`  API unreachable for ${device.host}, using mDNS name: "${deviceName}"`);
+        }
+
+        // Try to match against configured devices
+        const configMatch = this.config.devices?.find(d => {
+          if (matchedConfigs.has(d)) {
+            return false;
+          }
+          // Match by config name (user-configured name matches device API name)
+          if (d.name && deviceName && d.name === deviceName) {
+            return true;
+          }
+          // Match by original config host (IP hasn't changed)
+          if (d.host === device.host) {
+            return true;
+          }
+          return false;
+        });
+
+        if (configMatch) {
+          matchedConfigs.add(configMatch);
+          if (configMatch.host !== device.host) {
+            this.log.info(`Matched config "${configMatch.name}" -> ${device.host} (was ${configMatch.host})`);
+          } else {
+            this.log.info(`Matched config "${configMatch.name}" -> ${device.host} (IP unchanged)`);
+          }
+          devicesToRegister.set(device.host, {
+            config: { ...configMatch, host: device.host },
+            mac: deviceMac || mac,
+          });
+        } else if (this.config.autoDiscover !== false) {
+          // Only register new unconfigured devices if autoDiscover is enabled
+          this.log.info(`No config match for "${deviceName}" at ${device.host}, registering as new`);
+          devicesToRegister.set(device.host, {
+            config: { name: deviceName || device.name, host: device.host },
+            mac: deviceMac || mac,
+          });
+        } else {
+          this.log.info(`No config match for "${deviceName}" at ${device.host}, skipping (autoDiscover off)`);
+        }
+      }));
+    } catch (error) {
+      this.log.error('Discovery failed:', error);
+    }
+
+    // Continue listening for IP changes (always) and new devices (if autoDiscover)
+    this.log.info('Starting continuous mDNS listener...');
+    this.discovery.start(
+      (device: DiscoveredDevice) => {
+        this.log.info(`mDNS device appeared: ${device.name} at ${device.host} (MAC: ${device.mac || 'unknown'})`);
+        // Check if we already have this device under a different IP (match by MAC)
+        const existing = device.mac ? this.findAccessoryByMac(device.mac) : undefined;
+        if (existing && existing.getHost() !== device.host) {
+          // IP changed - update the existing accessory
+          const oldHost = existing.getHost();
+          existing.updateHost(device.host);
+          this.soundTouchAccessories.delete(oldHost);
+          this.soundTouchAccessories.set(device.host, existing);
+          const oldPlatformAccessory = this.externalAccessories.get(oldHost);
+          if (oldPlatformAccessory) {
+            this.externalAccessories.delete(oldHost);
+            this.externalAccessories.set(device.host, oldPlatformAccessory);
+          }
+        } else if (!existing && !this.soundTouchAccessories.has(device.host)) {
+          if (this.config.autoDiscover !== false) {
             this.log.info('New SoundTouch device discovered:', device.name, 'at', device.host);
             this.registerDevice({
               name: device.name,
               host: device.host,
             }, device.mac);
           }
-        },
-        (device: DiscoveredDevice) => {
-          this.log.info('SoundTouch device lost:', device.name);
-        },
-      );
-    }
+        }
+      },
+      (device: DiscoveredDevice) => {
+        this.log.info('SoundTouch device lost:', device.name);
+      },
+    );
 
     // Add unmatched config devices (offline devices not found via mDNS)
     if (this.config.devices) {
       for (const device of this.config.devices) {
         if (!matchedConfigs.has(device) && device.host && device.host.trim()) {
           if (!devicesToRegister.has(device.host)) {
-            this.log.info(`Device ${device.name || device.host} not found via mDNS, using config IP`);
+            this.log.info(`Device ${device.name || device.host} not found via mDNS, using config IP (will retry)`);
             devicesToRegister.set(device.host, { config: device });
           }
         }
