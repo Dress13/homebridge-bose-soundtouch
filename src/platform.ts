@@ -114,11 +114,24 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
         this.log.error('Discovery failed:', error);
       }
 
-      // Continue listening for new devices
+      // Continue listening for new devices and IP changes
       this.discovery.start(
         (device: DiscoveredDevice) => {
-          this.log.info('New SoundTouch device discovered:', device.name, 'at', device.host);
-          if (!this.soundTouchAccessories.has(device.host)) {
+          // Check if we already have this device under a different IP
+          const existing = this.findAccessoryByName(device.name);
+          if (existing && existing.getHost() !== device.host) {
+            // IP changed - update the existing accessory
+            const oldHost = existing.getHost();
+            existing.updateHost(device.host);
+            this.soundTouchAccessories.delete(oldHost);
+            this.soundTouchAccessories.set(device.host, existing);
+            const oldPlatformAccessory = this.externalAccessories.get(oldHost);
+            if (oldPlatformAccessory) {
+              this.externalAccessories.delete(oldHost);
+              this.externalAccessories.set(device.host, oldPlatformAccessory);
+            }
+          } else if (!this.soundTouchAccessories.has(device.host)) {
+            this.log.info('New SoundTouch device discovered:', device.name, 'at', device.host);
             this.registerDevice({
               name: device.name,
               host: device.host,
@@ -196,6 +209,16 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
 
   getAccessoryByHost(host: string): SoundTouchAccessory | undefined {
     return this.soundTouchAccessories.get(host);
+  }
+
+  private findAccessoryByName(name: string): SoundTouchAccessory | undefined {
+    for (const accessory of this.soundTouchAccessories.values()) {
+      const info = accessory.getDeviceInfo();
+      if (info && info.name.toLowerCase() === name.toLowerCase()) {
+        return accessory;
+      }
+    }
+    return undefined;
   }
 
   getAccessoryByName(name: string): SoundTouchAccessory | undefined {
