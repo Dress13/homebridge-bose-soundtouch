@@ -20,6 +20,7 @@ export class SoundTouchAccessory {
 
   // State
   private deviceInfo?: DeviceInfo;
+  private macAddress?: string;
   private currentVolume = 0;
   private currentMute = false;
   private isPoweredOn = false;
@@ -470,6 +471,9 @@ export class SoundTouchAccessory {
     try {
       // Get device info
       this.deviceInfo = await this.client.getInfo();
+      if (this.deviceInfo.macAddress) {
+        this.macAddress = this.deviceInfo.macAddress.toUpperCase();
+      }
       this.accessory.getService(this.platform.Service.AccessoryInformation)!
         .setCharacteristic(this.platform.Characteristic.Model, this.deviceInfo.type)
         .setCharacteristic(this.platform.Characteristic.SerialNumber, this.deviceInfo.deviceID);
@@ -651,6 +655,14 @@ export class SoundTouchAccessory {
 
   getHost(): string {
     return this.deviceConfig.host;
+  }
+
+  getMac(): string | undefined {
+    return this.macAddress;
+  }
+
+  setMac(mac: string): void {
+    this.macAddress = mac.toUpperCase();
   }
 
   destroy(): void {

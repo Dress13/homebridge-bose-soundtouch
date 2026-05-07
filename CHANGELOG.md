@@ -1,7 +1,10 @@
 # Changelog
 
-## v1.9.3
-- **IP-Wechsel erkennen** - Wenn ein Gerät per DHCP eine neue IP bekommt, wird es automatisch per mDNS-Name erkannt und die Verbindung aktualisiert
+## v1.9.5
+- **IP-Matching per MAC-Adresse** - Geräte werden anhand ihrer MAC-Adresse identifiziert (statt Name), sodass IP-Wechsel auch nach Umbenennungen zuverlässig erkannt werden
+
+## v1.9.3 / v1.9.4
+- **IP-Wechsel erkennen** - Wenn ein Gerät per DHCP eine neue IP bekommt, wird es automatisch per mDNS erkannt und die Verbindung aktualisiert
 
 ## v1.9.2
 - **Retry bei offline Geräten** - Geräte die beim Start nicht erreichbar sind, werden alle 30 Sekunden erneut versucht statt dauerhaft aufgegeben
