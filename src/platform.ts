@@ -279,7 +279,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   }
 
   private registerDevice(device: DeviceConfig, mac?: string): void {
-    const uuid = this.api.hap.uuid.generate(device.host);
+    const uuid = this.api.hap.uuid.generate(device.deviceID || device.host);
     const displayName = device.name || `SoundTouch ${device.host}`;
 
     // Map deviceIcon to HomeKit category (like LG WebOS plugin)
