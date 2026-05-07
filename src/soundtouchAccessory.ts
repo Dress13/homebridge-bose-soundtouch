@@ -15,6 +15,7 @@ export class SoundTouchAccessory {
   // Services
   private televisionService!: Service;
   private speakerService!: Service;
+  private volumeLightbulbService!: Service;
   private inputServices: Service[] = [];
 
   // State
@@ -48,6 +49,9 @@ export class SoundTouchAccessory {
 
     // Setup Television Speaker Service
     this.setupSpeakerService();
+
+    // Setup Volume Lightbulb Service (for slider in Home app)
+    this.setupVolumeLightbulb();
 
     // Setup Input Sources immediately (required for External Accessories)
     // Names will be updated later when device info is loaded
@@ -193,6 +197,56 @@ export class SoundTouchAccessory {
           }
         } catch (error) {
           this.platform.log.error('Failed to handle volume selector:', error);
+        }
+      });
+  }
+
+  private setupVolumeLightbulb(): void {
+    const displayName = this.deviceConfig.name || this.accessory.displayName;
+
+    // Create Lightbulb service for volume control with slider
+    this.volumeLightbulbService = this.accessory.addService(
+      this.platform.Service.Lightbulb,
+      displayName + ' Lautstärke',
+      'volume-lightbulb',
+    );
+
+    // Link to TV service so it appears under the TV accessory
+    this.televisionService.addLinkedService(this.volumeLightbulbService);
+
+    // On/Off controls mute
+    this.volumeLightbulbService.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => !this.currentMute && this.currentVolume > 0)
+      .onSet(async (value: CharacteristicValue) => {
+        const on = value as boolean;
+        try {
+          if (!on) {
+            await this.client.setMute(true);
+            this.currentMute = true;
+          } else if (this.currentMute) {
+            await this.client.setMute(false);
+            this.currentMute = false;
+          }
+        } catch (error) {
+          this.platform.log.error('Failed to toggle mute via lightbulb:', error);
+        }
+      });
+
+    // Brightness controls volume (0-100)
+    this.volumeLightbulbService.getCharacteristic(this.platform.Characteristic.Brightness)
+      .onGet(() => this.currentVolume)
+      .onSet(async (value: CharacteristicValue) => {
+        const volume = value as number;
+        try {
+          await this.client.setVolume(volume);
+          this.currentVolume = volume;
+          // Unmute if setting volume > 0
+          if (volume > 0 && this.currentMute) {
+            await this.client.setMute(false);
+            this.currentMute = false;
+          }
+        } catch (error) {
+          this.platform.log.error('Failed to set volume via lightbulb:', error);
         }
       });
   }
@@ -409,6 +463,9 @@ export class SoundTouchAccessory {
     }
   }
 
+  private initRetryTimer?: ReturnType<typeof setTimeout>;
+  private static readonly INIT_RETRY_INTERVAL = 30_000; // 30 seconds
+
   private async initialize(): Promise<void> {
     try {
       // Get device info
@@ -430,7 +487,9 @@ export class SoundTouchAccessory {
       this.platform.log.info(`Initialized ${this.accessory.displayName} (${this.deviceConfig.host})`);
 
     } catch (error) {
-      this.platform.log.error('Failed to initialize device:', error);
+      this.platform.log.error(`Failed to initialize ${this.accessory.displayName} (${this.deviceConfig.host}): ${error}`);
+      this.platform.log.info(`Will retry in ${SoundTouchAccessory.INIT_RETRY_INTERVAL / 1000}s...`);
+      this.initRetryTimer = setTimeout(() => this.initialize(), SoundTouchAccessory.INIT_RETRY_INTERVAL);
     }
   }
 
@@ -482,6 +541,8 @@ export class SoundTouchAccessory {
 
     this.webSocket.on('connected', () => {
       this.platform.log.info(`WebSocket connected for ${this.accessory.displayName}`);
+      // Refresh state on (re)connect so HomeKit gets the current status
+      this.refreshState();
     });
 
     this.webSocket.on('disconnected', () => {
@@ -505,6 +566,16 @@ export class SoundTouchAccessory {
   private updateVolumeCharacteristics(): void {
     this.speakerService.updateCharacteristic(this.platform.Characteristic.Volume, this.currentVolume);
     this.speakerService.updateCharacteristic(this.platform.Characteristic.Mute, this.currentMute);
+
+    // Update lightbulb service
+    this.volumeLightbulbService.updateCharacteristic(
+      this.platform.Characteristic.Brightness,
+      this.currentVolume,
+    );
+    this.volumeLightbulbService.updateCharacteristic(
+      this.platform.Characteristic.On,
+      !this.currentMute && this.currentVolume > 0,
+    );
   }
 
   private async refreshState(): Promise<void> {
@@ -565,6 +636,9 @@ export class SoundTouchAccessory {
   }
 
   destroy(): void {
+    if (this.initRetryTimer) {
+      clearTimeout(this.initRetryTimer);
+    }
     this.webSocket.disconnect();
   }
 }

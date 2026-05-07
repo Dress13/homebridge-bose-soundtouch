@@ -207,7 +207,9 @@
       background: rgba(0,0,0,0.5);
       z-index: 1000;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
+      padding: 20px;
+      overflow-y: auto;
     }
     .modal-overlay.show { display: flex; }
     .modal {
@@ -215,9 +217,10 @@
       border-radius: 10px;
       width: 90%;
       max-width: 600px;
-      max-height: 80vh;
+      max-height: calc(100vh - 40px);
       display: flex;
       flex-direction: column;
+      margin: auto;
     }
     .modal-header {
       padding: 15px 20px;
@@ -434,7 +437,15 @@
               <div class="device-title">${device.name || 'Unbenannt'}</div>
               <div class="device-ip">${device.host}</div>
             </div>
-            <button class="btn btn-danger" onclick="removeDevice(${i})">Gerät entfernen</button>
+            ${pendingRemoveDevice === i ? `
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span style="color: #dc3545; font-size: 14px;">Wirklich entfernen?</span>
+                <button class="btn btn-danger" onclick="confirmRemoveDevice()">Ja</button>
+                <button class="btn" onclick="cancelRemoveDevice()">Nein</button>
+              </div>
+            ` : `
+              <button class="btn btn-danger" onclick="removeDevice(${i})">Gerät entfernen</button>
+            `}
           </div>
 
           <div class="form-row">
@@ -572,13 +583,28 @@
       render();
     }
 
+    let pendingRemoveDevice = null;
+
     function removeDevice(index) {
-      if (confirm('Gerät "' + (config.devices[index].name || config.devices[index].host) + '" wirklich entfernen?')) {
-        config.devices.splice(index, 1);
+      // Show confirmation inline
+      pendingRemoveDevice = index;
+      render();
+    }
+
+    function confirmRemoveDevice() {
+      if (pendingRemoveDevice !== null) {
+        config.devices.splice(pendingRemoveDevice, 1);
         if (activeTab >= config.devices.length) activeTab = Math.max(0, config.devices.length - 1);
+        pendingRemoveDevice = null;
         saveConfig();
         render();
+        showStatus('Gerät entfernt!', 'success');
       }
+    }
+
+    function cancelRemoveDevice() {
+      pendingRemoveDevice = null;
+      render();
     }
 
     function addPreset(deviceIndex) {
@@ -641,42 +667,129 @@
       }
     }
 
+    function getDeviceStatus(device) {
+      // Check by MAC address (deviceID) first, then by IP
+      const byMac = device.deviceID ? config.devices.find(d => d.deviceID === device.deviceID) : null;
+      const byIp = config.devices.find(d => d.host === device.host);
+
+      if (byMac) {
+        if (byMac.host !== device.host) {
+          // Same device but IP changed
+          return { status: 'ip-changed', existingDevice: byMac };
+        }
+        return { status: 'exists', existingDevice: byMac };
+      }
+
+      if (byIp) {
+        // IP exists but different/no MAC - update MAC
+        if (device.deviceID && !byIp.deviceID) {
+          return { status: 'update-mac', existingDevice: byIp };
+        }
+        return { status: 'exists', existingDevice: byIp };
+      }
+
+      return { status: 'new', existingDevice: null };
+    }
+
     function renderDiscoveredDevices() {
       const list = document.getElementById('discoveredList');
 
       list.innerHTML = discoveredDevices.map((device, i) => {
-        const exists = config.devices.some(d => d.host === device.host);
+        const { status, existingDevice } = getDeviceStatus(device);
+
+        let buttonHtml = '';
+        let infoExtra = '';
+
+        switch (status) {
+          case 'ip-changed':
+            buttonHtml = `<button class="btn btn-primary" onclick="updateDeviceIp(${i})">IP aktualisieren</button>`;
+            infoExtra = `<span style="color: #ffc107; font-size: 11px;">Alte IP: ${existingDevice.host}</span>`;
+            break;
+          case 'update-mac':
+            // Silently update MAC in background
+            existingDevice.deviceID = device.deviceID;
+            saveConfig();
+            buttonHtml = `<button class="btn" disabled>Bereits vorhanden</button>`;
+            break;
+          case 'exists':
+            buttonHtml = `<button class="btn" disabled>Bereits vorhanden</button>`;
+            break;
+          case 'new':
+          default:
+            buttonHtml = `<button class="btn btn-success" onclick="addDevice(${i})">Hinzufügen</button>`;
+        }
+
         return `
           <div class="discovered-item">
             <div class="discovered-info">
               <span class="discovered-name">${device.name}</span>
-              <span class="discovered-host">${device.host}</span>
+              <span class="discovered-host">${device.host}${device.deviceID ? ` (${device.deviceID.slice(-8)})` : ''}</span>
+              ${infoExtra}
             </div>
-            <button class="btn ${exists ? '' : 'btn-success'}" onclick="addDevice(${i})" ${exists ? 'disabled' : ''}>
-              ${exists ? 'Bereits vorhanden' : 'Hinzufügen'}
-            </button>
+            ${buttonHtml}
           </div>
         `;
       }).join('');
 
-      // Add "Add all" button
-      const notAdded = discoveredDevices.filter(d => !config.devices.some(c => c.host === d.host));
-      if (notAdded.length > 1) {
+      // Add "Add all" button for new devices only
+      const newDevices = discoveredDevices.filter(d => getDeviceStatus(d).status === 'new');
+      const ipChangedDevices = discoveredDevices.filter(d => getDeviceStatus(d).status === 'ip-changed');
+
+      if (ipChangedDevices.length > 0) {
         list.innerHTML += `
-          <button class="btn btn-primary" onclick="addAllDevices()" style="margin-top: 10px; width: 100%;">
-            Alle ${notAdded.length} neuen Geräte hinzufügen
+          <button class="btn btn-primary" onclick="updateAllIps()" style="margin-top: 10px; width: 100%;">
+            Alle ${ipChangedDevices.length} IP-Adressen aktualisieren
+          </button>
+        `;
+      }
+
+      if (newDevices.length > 1) {
+        list.innerHTML += `
+          <button class="btn btn-success" onclick="addAllDevices()" style="margin-top: 10px; width: 100%;">
+            Alle ${newDevices.length} neuen Geräte hinzufügen
           </button>
         `;
       }
     }
 
+    function updateDeviceIp(index) {
+      const device = discoveredDevices[index];
+      const existing = config.devices.find(d => d.deviceID === device.deviceID);
+      if (existing) {
+        const oldIp = existing.host;
+        existing.host = device.host;
+        saveConfig();
+        render();
+        renderDiscoveredDevices();
+        showStatus(`IP von "${existing.name}" aktualisiert: ${oldIp} → ${device.host}`, 'success');
+      }
+    }
+
+    function updateAllIps() {
+      let updated = 0;
+      for (const device of discoveredDevices) {
+        const { status, existingDevice } = getDeviceStatus(device);
+        if (status === 'ip-changed' && existingDevice) {
+          existingDevice.host = device.host;
+          updated++;
+        }
+      }
+      if (updated > 0) {
+        saveConfig();
+        render();
+        renderDiscoveredDevices();
+        showStatus(`${updated} IP-Adresse(n) aktualisiert!`, 'success');
+      }
+    }
+
     function addDevice(index) {
       const device = discoveredDevices[index];
-      if (!device || config.devices.some(d => d.host === device.host)) return;
+      if (!device || getDeviceStatus(device).status !== 'new') return;
 
       config.devices.push({
         host: device.host,
         name: device.name,
+        deviceID: device.deviceID || '',
         deviceIcon: 34
       });
 
@@ -689,10 +802,11 @@
     function addAllDevices() {
       let added = 0;
       for (const device of discoveredDevices) {
-        if (!config.devices.some(d => d.host === device.host)) {
+        if (getDeviceStatus(device).status === 'new') {
           config.devices.push({
             host: device.host,
             name: device.name,
+            deviceID: device.deviceID || '',
             deviceIcon: 34
           });
           added++;
@@ -724,7 +838,7 @@
       host: null,
       servers: [],
       currentServer: null,
-      currentPath: [],
+      currentPath: [],  // Array of { name, objectId }
       items: [],
       selectedItem: null
     };
@@ -738,6 +852,9 @@
       nasBrowserState.currentServer = null;
 
       document.getElementById('nasBrowserModal').classList.add('show');
+      // Scroll modal into view
+      document.getElementById('nasBrowserModal').scrollTop = 0;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       document.getElementById('nasContent').innerHTML = '<div class="nas-loading">Lade Media Server...</div>';
       document.getElementById('nasBreadcrumb').innerHTML = '';
       document.getElementById('nasSelectBtn').disabled = true;
@@ -774,18 +891,19 @@
       nasBrowserState.currentPath = [];
       nasBrowserState.selectedItem = null;
 
-      await loadNasContent();
+      // Browse root (objectId "0")
+      await loadNasContent('0');
     }
 
-    async function loadNasContent(location) {
+    async function loadNasContent(objectId) {
       document.getElementById('nasContent').innerHTML = '<div class="nas-loading">Lade...</div>';
       document.getElementById('nasSelectBtn').disabled = true;
 
       try {
+        // Use direct UPnP query via server IP
         const response = await homebridge.request('/browseNas', {
-          host: nasBrowserState.host,
-          serverId: nasBrowserState.currentServer.id,
-          location: location || null
+          serverIp: nasBrowserState.currentServer.ip,
+          objectId: objectId || '0'
         });
 
         if (response.error) {
@@ -844,10 +962,10 @@
     function handleNasItemDblClick(index) {
       const item = nasBrowserState.items[index];
       if (item.type === 'dir') {
-        // Navigate into folder
-        nasBrowserState.currentPath.push({ name: item.name, location: item.location });
+        // Navigate into folder using objectId
+        nasBrowserState.currentPath.push({ name: item.name, objectId: item.objectId });
         nasBrowserState.selectedItem = null;
-        loadNasContent(item.location);
+        loadNasContent(item.objectId);
       }
     }
 
@@ -856,13 +974,13 @@
         // Go to root
         nasBrowserState.currentPath = [];
         nasBrowserState.selectedItem = null;
-        await loadNasContent();
+        await loadNasContent('0');
       } else {
         // Navigate to specific path level
         nasBrowserState.currentPath = nasBrowserState.currentPath.slice(0, pathIndex + 1);
         nasBrowserState.selectedItem = null;
-        const location = nasBrowserState.currentPath[pathIndex]?.location;
-        await loadNasContent(location);
+        const objectId = nasBrowserState.currentPath[pathIndex]?.objectId || '0';
+        await loadNasContent(objectId);
       }
     }
 
@@ -872,8 +990,8 @@
       const item = nasBrowserState.items[nasBrowserState.selectedItem];
       const { deviceIndex, presetIndex } = nasBrowserState;
 
-      // Update preset with NAS info
-      config.devices[deviceIndex].presets[presetIndex].nasLocation = item.location;
+      // Update preset with NAS info - use objectId as nasLocation
+      config.devices[deviceIndex].presets[presetIndex].nasLocation = item.objectId;
       config.devices[deviceIndex].presets[presetIndex].nasServer = `${nasBrowserState.currentServer.id}/0`;
       config.devices[deviceIndex].presets[presetIndex].name = item.name;
 
