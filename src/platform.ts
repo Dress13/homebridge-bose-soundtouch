@@ -212,9 +212,16 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   }
 
   private findAccessoryByName(name: string): SoundTouchAccessory | undefined {
-    for (const accessory of this.soundTouchAccessories.values()) {
+    const lowerName = name.toLowerCase();
+    for (const [, accessory] of this.soundTouchAccessories) {
+      // Match by device info name (from API)
       const info = accessory.getDeviceInfo();
-      if (info && info.name.toLowerCase() === name.toLowerCase()) {
+      if (info && info.name.toLowerCase() === lowerName) {
+        return accessory;
+      }
+      // Match by display name (from config or mDNS, available before API init)
+      const platformAccessory = this.externalAccessories.get(accessory.getHost());
+      if (platformAccessory && platformAccessory.displayName.toLowerCase() === lowerName) {
         return accessory;
       }
     }

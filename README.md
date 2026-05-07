@@ -11,7 +11,9 @@ Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple 
 - **6 Presets + AUX + Bluetooth** - 8 Eingänge als Input Sources
 - **Custom Radio Stations** - Eigene Radiosender als Presets konfigurierbar
 - **Streaming-Dienste** - Spotify, Amazon Music, Deezer, TuneIn Unterstützung
+- **NAS/DLNA** - Musik von NAS-Servern als Presets konfigurierbar (mit Browser-Wizard)
 - **Echtzeit-Updates** - WebSocket-Verbindung für sofortige Statusänderungen
+- **Auto-Reconnect** - Offline-Geräte werden automatisch verbunden, IP-Wechsel per DHCP werden erkannt
 - **Multi-Room** - Unterstützung für mehrere Geräte
 
 ## Installation
@@ -143,11 +145,13 @@ Alternativ über das Kontrollzentrum:
 |--------|-----|--------------|
 | `slot` | number | Preset-Taste (1-6) |
 | `name` | string | Anzeigename in HomeKit |
-| `type` | string | `radio`, `spotify`, `amazon`, `deezer`, `tunein` |
+| `type` | string | `radio`, `spotify`, `amazon`, `deezer`, `tunein`, `nas` |
 | `url` | string | Stream URL (nur für `radio`) |
 | `spotifyUri` | string | Spotify URI (nur für `spotify`) |
 | `contentId` | string | Content ID (für `tunein`, `amazon`, `deezer`) |
 | `sourceAccount` | string | Account ID (für `spotify`, `amazon`, `deezer`) |
+| `nasLocation` | string | DLNA Object-ID (nur für `nas`) |
+| `nasServer` | string | Server-ID + "/0" (nur für `nas`) |
 
 ## HomeKit-Funktionen
 
@@ -199,6 +203,10 @@ Das Icon wird beim Pairing festgelegt. Um es zu ändern:
 ### Lautstärke funktioniert nicht
 
 Die Lautstärke wird über einen separaten "Lautstärke"-Service gesteuert, der als Lampe mit Helligkeitsregler erscheint. Falls dieser nicht angezeigt wird, entferne das Gerät aus HomeKit und füge es neu hinzu.
+
+## Changelog
+
+Siehe [CHANGELOG.md](CHANGELOG.md) für alle Änderungen.
 
 ## Lizenz
 
