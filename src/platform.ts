@@ -92,8 +92,12 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
       const timeout = this.config.discoveryTimeout || 10000;
 
       try {
+        this.log.info(`mDNS discovery timeout: ${timeout}ms`);
         const discovered = await this.discovery.discoverOnce(timeout);
-        this.log.info(`Discovered ${discovered.length} SoundTouch device(s)`);
+        this.log.info(`mDNS discovered ${discovered.length} device(s):`);
+        for (const d of discovered) {
+          this.log.info(`  - ${d.name} at ${d.host} (MAC: ${d.mac || 'unknown'})`);
+        }
 
         // For each discovered device, identify it via API and match to config
         await Promise.all(discovered.map(async (device) => {
@@ -110,9 +114,11 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
             const info = await client.getInfo();
             deviceName = info.name;
             deviceMac = info.macAddress?.toUpperCase();
-          } catch {
+            this.log.info(`  API identified ${device.host}: "${deviceName}" (MAC: ${deviceMac})`);
+          } catch (err) {
             // Device not reachable via API - use mDNS name
             deviceName = device.name;
+            this.log.info(`  API unreachable for ${device.host}, using mDNS name: "${deviceName}"`);
           }
 
           // Try to match against configured devices
@@ -133,14 +139,13 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
 
           if (configMatch) {
             matchedConfigs.add(configMatch);
-            // Use config settings (presets, icon, etc.) but with current mDNS IP
-            this.log.info(`Matched ${configMatch.name || configMatch.host} -> ${device.host} (was ${configMatch.host})`);
+            this.log.info(`Matched config "${configMatch.name}" -> ${device.host} (was ${configMatch.host})`);
             devicesToRegister.set(device.host, {
               config: { ...configMatch, host: device.host },
               mac: deviceMac || mac,
             });
           } else {
-            // New auto-discovered device not in config
+            this.log.info(`No config match for "${deviceName}" at ${device.host}, registering as new`);
             devicesToRegister.set(device.host, {
               config: { name: deviceName || device.name, host: device.host },
               mac: deviceMac || mac,
@@ -152,8 +157,10 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
       }
 
       // Continue listening for new devices and IP changes
+      this.log.info('Starting continuous mDNS listener...');
       this.discovery.start(
         (device: DiscoveredDevice) => {
+          this.log.info(`mDNS device appeared: ${device.name} at ${device.host} (MAC: ${device.mac || 'unknown'})`);
           // Check if we already have this device under a different IP (match by MAC)
           const existing = device.mac ? this.findAccessoryByMac(device.mac) : undefined;
           if (existing && existing.getHost() !== device.host) {
