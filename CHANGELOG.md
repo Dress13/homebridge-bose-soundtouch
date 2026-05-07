@@ -1,10 +1,13 @@
 # Changelog
 
-## v1.9.5
-- **IP-Matching per MAC-Adresse** - Geräte werden anhand ihrer MAC-Adresse identifiziert (statt Name), sodass IP-Wechsel auch nach Umbenennungen zuverlässig erkannt werden
+## v1.9.6
+- **Automatisches IP-Remapping beim Start** - Config-IPs werden beim Start per mDNS Discovery und API-Abfrage automatisch aktualisiert. Geräte werden erst per Name identifiziert, dann mit der aktuellen IP verbunden. Stale IPs in der Config sind kein Problem mehr.
+- **IP-Tracking per MAC-Adresse** - Nach dem Start werden IP-Wechsel per MAC-Adresse erkannt, sodass auch Umbenennungen kein Problem sind
 
-## v1.9.3 / v1.9.4
-- **IP-Wechsel erkennen** - Wenn ein Gerät per DHCP eine neue IP bekommt, wird es automatisch per mDNS erkannt und die Verbindung aktualisiert
+## v1.9.2 - v1.9.5
+- **Retry bei offline Geräten** - Geräte die beim Start nicht erreichbar sind, werden alle 30 Sekunden erneut versucht
+- **Status-Refresh bei WebSocket-Reconnect** - Nach WebSocket-(Neu-)Verbindung wird der aktuelle Status sofort abgefragt
+- **IP-Wechsel erkennen** - Laufende mDNS-Überwachung für IP-Änderungen
 
 ## v1.9.2
 - **Retry bei offline Geräten** - Geräte die beim Start nicht erreichbar sind, werden alle 30 Sekunden erneut versucht statt dauerhaft aufgegeben

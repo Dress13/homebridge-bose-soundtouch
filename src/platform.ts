@@ -11,6 +11,7 @@ import {
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { SoundTouchAccessory } from './soundtouchAccessory';
 import { SoundTouchDiscovery, DiscoveredDevice } from './discovery';
+import { SoundTouchClient } from './soundtouchClient';
 
 // Preset configuration for a single slot
 export interface PresetConfig {
@@ -78,18 +79,10 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   }
 
   private async discoverDevices(): Promise<void> {
-    const configuredDevices: Map<string, DeviceConfig> = new Map();
-
-    // Add manually configured devices (skip entries without host)
-    if (this.config.devices) {
-      for (const device of this.config.devices) {
-        if (device.host && device.host.trim()) {
-          configuredDevices.set(device.host, device);
-        } else {
-          this.log.warn('Skipping device without host in config');
-        }
-      }
-    }
+    // Final list of devices to register: host -> { config, mac }
+    const devicesToRegister: Map<string, { config: DeviceConfig; mac?: string }> = new Map();
+    // Track which config entries have been matched to a discovered device
+    const matchedConfigs = new Set<DeviceConfig>();
 
     // Auto-discover devices if enabled (default: true)
     if (this.config.autoDiscover !== false) {
@@ -102,18 +95,58 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
         const discovered = await this.discovery.discoverOnce(timeout);
         this.log.info(`Discovered ${discovered.length} SoundTouch device(s)`);
 
-        for (const device of discovered) {
-          if (!configuredDevices.has(device.host)) {
-            configuredDevices.set(device.host, {
-              name: device.name,
-              host: device.host,
+        // For each discovered device, identify it via API and match to config
+        await Promise.all(discovered.map(async (device) => {
+          const mac = device.mac?.toUpperCase();
+          if (mac) {
+            this.macToHost.set(mac, device.host);
+          }
+
+          // Try to identify the device via API to match against config
+          let deviceName: string | undefined;
+          let deviceMac: string | undefined;
+          try {
+            const client = new SoundTouchClient(device.host, 8090, 3000);
+            const info = await client.getInfo();
+            deviceName = info.name;
+            deviceMac = info.macAddress?.toUpperCase();
+          } catch {
+            // Device not reachable via API - use mDNS name
+            deviceName = device.name;
+          }
+
+          // Try to match against configured devices
+          const configMatch = this.config.devices?.find(d => {
+            if (matchedConfigs.has(d)) {
+              return false;
+            }
+            // Match by config name (user-configured name matches device API name)
+            if (d.name && deviceName && d.name === deviceName) {
+              return true;
+            }
+            // Match by original config host (IP hasn't changed)
+            if (d.host === device.host) {
+              return true;
+            }
+            return false;
+          });
+
+          if (configMatch) {
+            matchedConfigs.add(configMatch);
+            // Use config settings (presets, icon, etc.) but with current mDNS IP
+            this.log.info(`Matched ${configMatch.name || configMatch.host} -> ${device.host} (was ${configMatch.host})`);
+            devicesToRegister.set(device.host, {
+              config: { ...configMatch, host: device.host },
+              mac: deviceMac || mac,
+            });
+          } else {
+            // New auto-discovered device not in config
+            devicesToRegister.set(device.host, {
+              config: { name: deviceName || device.name, host: device.host },
+              mac: deviceMac || mac,
             });
           }
-          // Store MAC from mDNS for later matching
-          if (device.mac) {
-            this.macToHost.set(device.mac.toUpperCase(), device.host);
-          }
-        }
+        }));
       } catch (error) {
         this.log.error('Discovery failed:', error);
       }
@@ -148,6 +181,18 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
       );
     }
 
+    // Add unmatched config devices (offline devices not found via mDNS)
+    if (this.config.devices) {
+      for (const device of this.config.devices) {
+        if (!matchedConfigs.has(device) && device.host && device.host.trim()) {
+          if (!devicesToRegister.has(device.host)) {
+            this.log.info(`Device ${device.name || device.host} not found via mDNS, using config IP`);
+            devicesToRegister.set(device.host, { config: device });
+          }
+        }
+      }
+    }
+
     // Remove old cached platform accessories (migration to external accessories)
     if (this.accessories.length > 0) {
       this.log.info(`Removing ${this.accessories.length} old cached accessory(ies) - migrating to external accessories`);
@@ -156,10 +201,8 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     }
 
     // Register all devices as external accessories
-    for (const device of configuredDevices.values()) {
-      // Find MAC for this host from mDNS discovery
-      const mac = [...this.macToHost.entries()].find(([, host]) => host === device.host)?.[0];
-      this.registerDevice(device, mac);
+    for (const { config, mac } of devicesToRegister.values()) {
+      this.registerDevice(config, mac);
     }
   }
 
