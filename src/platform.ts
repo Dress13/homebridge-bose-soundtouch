@@ -47,6 +47,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   public readonly accessories: PlatformAccessory[] = [];
   private readonly soundTouchAccessories: Map<string, SoundTouchAccessory> = new Map();
   private readonly externalAccessories: Map<string, PlatformAccessory> = new Map();
+  private readonly macToHost: Map<string, string> = new Map();
   private discovery?: SoundTouchDiscovery;
 
   constructor(
@@ -103,11 +104,14 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
 
         for (const device of discovered) {
           if (!configuredDevices.has(device.host)) {
-            // Auto-discovered devices get no preset config (will use device's existing presets)
             configuredDevices.set(device.host, {
               name: device.name,
               host: device.host,
             });
+          }
+          // Store MAC from mDNS for later matching
+          if (device.mac) {
+            this.macToHost.set(device.mac.toUpperCase(), device.host);
           }
         }
       } catch (error) {
@@ -117,8 +121,8 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
       // Continue listening for new devices and IP changes
       this.discovery.start(
         (device: DiscoveredDevice) => {
-          // Check if we already have this device under a different IP
-          const existing = this.findAccessoryByName(device.name);
+          // Check if we already have this device under a different IP (match by MAC)
+          const existing = device.mac ? this.findAccessoryByMac(device.mac) : undefined;
           if (existing && existing.getHost() !== device.host) {
             // IP changed - update the existing accessory
             const oldHost = existing.getHost();
@@ -130,12 +134,12 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
               this.externalAccessories.delete(oldHost);
               this.externalAccessories.set(device.host, oldPlatformAccessory);
             }
-          } else if (!this.soundTouchAccessories.has(device.host)) {
+          } else if (!existing && !this.soundTouchAccessories.has(device.host)) {
             this.log.info('New SoundTouch device discovered:', device.name, 'at', device.host);
             this.registerDevice({
               name: device.name,
               host: device.host,
-            });
+            }, device.mac);
           }
         },
         (device: DiscoveredDevice) => {
@@ -153,11 +157,13 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
 
     // Register all devices as external accessories
     for (const device of configuredDevices.values()) {
-      this.registerDevice(device);
+      // Find MAC for this host from mDNS discovery
+      const mac = [...this.macToHost.entries()].find(([, host]) => host === device.host)?.[0];
+      this.registerDevice(device, mac);
     }
   }
 
-  private registerDevice(device: DeviceConfig): void {
+  private registerDevice(device: DeviceConfig, mac?: string): void {
     const uuid = this.api.hap.uuid.generate(device.host);
     const displayName = device.name || `SoundTouch ${device.host}`;
 
@@ -182,6 +188,9 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
 
     // Create the SoundTouch accessory handler
     const stAccessory = new SoundTouchAccessory(this, accessory, device);
+    if (mac) {
+      stAccessory.setMac(mac);
+    }
     this.soundTouchAccessories.set(device.host, stAccessory);
     this.externalAccessories.set(device.host, accessory);
 
@@ -211,17 +220,10 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     return this.soundTouchAccessories.get(host);
   }
 
-  private findAccessoryByName(name: string): SoundTouchAccessory | undefined {
-    const lowerName = name.toLowerCase();
-    for (const [, accessory] of this.soundTouchAccessories) {
-      // Match by device info name (from API)
-      const info = accessory.getDeviceInfo();
-      if (info && info.name.toLowerCase() === lowerName) {
-        return accessory;
-      }
-      // Match by display name (from config or mDNS, available before API init)
-      const platformAccessory = this.externalAccessories.get(accessory.getHost());
-      if (platformAccessory && platformAccessory.displayName.toLowerCase() === lowerName) {
+  private findAccessoryByMac(mac: string): SoundTouchAccessory | undefined {
+    const upperMac = mac.toUpperCase();
+    for (const accessory of this.soundTouchAccessories.values()) {
+      if (accessory.getMac() === upperMac) {
         return accessory;
       }
     }
