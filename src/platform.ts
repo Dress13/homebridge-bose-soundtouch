@@ -119,20 +119,17 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
           this.log.info(`  API unreachable for ${device.host}, using mDNS name: "${deviceName}"`);
         }
 
-        // Try to match against configured devices
+        // Try to match against configured devices by name
+        // First try exact match, then fuzzy (config name contains device name or vice versa)
         const configMatch = this.config.devices?.find(d => {
-          if (matchedConfigs.has(d)) {
+          if (matchedConfigs.has(d) || !d.name || !deviceName) {
             return false;
           }
-          // Match by config name (user-configured name matches device API name)
-          if (d.name && deviceName && d.name === deviceName) {
-            return true;
-          }
-          // Match by original config host (IP hasn't changed)
-          if (d.host === device.host) {
-            return true;
-          }
-          return false;
+          const configLower = d.name.toLowerCase();
+          const deviceLower = deviceName.toLowerCase();
+          return configLower === deviceLower
+            || configLower.includes(deviceLower)
+            || deviceLower.includes(configLower);
         });
 
         if (configMatch) {
