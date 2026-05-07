@@ -8,15 +8,11 @@ export interface DiscoveredDevice {
 }
 
 export class SoundTouchDiscovery {
-  private bonjour: Bonjour;
+  private bonjour: Bonjour | null = null;
   private browser: ReturnType<Bonjour['find']> | null = null;
   private devices: Map<string, DiscoveredDevice> = new Map();
   private onDeviceFound?: (device: DiscoveredDevice) => void;
   private onDeviceLost?: (device: DiscoveredDevice) => void;
-
-  constructor() {
-    this.bonjour = new Bonjour();
-  }
 
   start(
     onDeviceFound?: (device: DiscoveredDevice) => void,
@@ -25,8 +21,10 @@ export class SoundTouchDiscovery {
     this.onDeviceFound = onDeviceFound;
     this.onDeviceLost = onDeviceLost;
 
-    // SoundTouch devices advertise via mDNS as _soundtouch._tcp
-    this.browser = this.bonjour.find({ type: 'soundtouch' }, (service: Service) => {
+    this.bonjour = new Bonjour();
+    this.browser = this.bonjour.find({ type: 'soundtouch' });
+
+    this.browser.on('up', (service: Service) => {
       this.handleServiceUp(service);
     });
 
@@ -40,7 +38,10 @@ export class SoundTouchDiscovery {
       this.browser.stop();
       this.browser = null;
     }
-    this.bonjour.destroy();
+    if (this.bonjour) {
+      this.bonjour.destroy();
+      this.bonjour = null;
+    }
   }
 
   private handleServiceUp(service: Service): void {
@@ -84,8 +85,10 @@ export class SoundTouchDiscovery {
   async discoverOnce(timeout = 5000): Promise<DiscoveredDevice[]> {
     return new Promise((resolve) => {
       const devices: DiscoveredDevice[] = [];
+      const bonjour = new Bonjour();
+      const browser = bonjour.find({ type: 'soundtouch' });
 
-      const browser = this.bonjour.find({ type: 'soundtouch' }, (service: Service) => {
+      browser.on('up', (service: Service) => {
         if (!service.addresses || service.addresses.length === 0) {
           return;
         }
@@ -106,6 +109,7 @@ export class SoundTouchDiscovery {
 
       setTimeout(() => {
         browser.stop();
+        bonjour.destroy();
         resolve(devices);
       }, timeout);
     });
