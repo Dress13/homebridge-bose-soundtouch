@@ -44,8 +44,15 @@ Die Bridge selbst muss **nicht** zu HomeKit hinzugefügt werden.
 
 ## Lautstärkesteuerung
 
-Die Lautstärke wird über die **Apple TV Remote** im Kontrollzentrum gesteuert:
+Die Lautstärke wird über zwei Methoden gesteuert:
 
+### 1. Lautstärke-Slider in Home App (empfohlen)
+Jedes Gerät hat einen zusätzlichen "Lautstärke"-Service, der als Lampe mit Helligkeitsregler erscheint:
+- **Helligkeit** = Lautstärke (0-100%)
+- **Ein/Aus** = Mute
+
+### 2. Apple TV Remote
+Alternativ über das Kontrollzentrum:
 1. **Kontrollzentrum öffnen** (von oben rechts wischen)
 2. **Apple TV Remote** Symbol tippen
 3. **SoundTouch Gerät auswählen** (oben)
@@ -191,7 +198,7 @@ Das Icon wird beim Pairing festgelegt. Um es zu ändern:
 
 ### Lautstärke funktioniert nicht
 
-Die Lautstärke wird nur über die Apple TV Remote gesteuert, nicht direkt in der Home App Kachel.
+Die Lautstärke wird über einen separaten "Lautstärke"-Service gesteuert, der als Lampe mit Helligkeitsregler erscheint. Falls dieser nicht angezeigt wird, entferne das Gerät aus HomeKit und füge es neu hinzu.
 
 ## Lizenz
 

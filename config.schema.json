@@ -47,6 +47,11 @@
               "type": "string",
               "description": "Anzeigename (optional, wird automatisch vom Gerät gelesen)"
             },
+            "deviceID": {
+              "title": "Geräte-ID (MAC)",
+              "type": "string",
+              "description": "MAC-Adresse des Geräts (wird automatisch erkannt)"
+            },
             "room": {
               "title": "Raum",
               "type": "string",

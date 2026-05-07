@@ -132,36 +132,43 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
     });
   }
 
-  // Browse NAS/DLNA content via Bose SoundTouch navigate API
+  // Browse NAS/DLNA content directly via UPnP SOAP
   async browseNas(payload) {
-    const { host, serverId, location } = payload;
-    if (!host || !serverId) {
-      return { error: 'No host or serverId provided' };
+    const { serverIp, objectId } = payload;
+    if (!serverIp) {
+      return { error: 'No serverIp provided' };
     }
 
-    // Build sourceAccount: serverId + "/0"
-    const sourceAccount = `${serverId}/0`;
-
-    // If location is provided, we need to select it first, then navigate
-    if (location && location !== '0') {
-      // First select the folder to navigate into it
-      await this.selectNasFolder(host, location, sourceAccount);
-    }
+    // Default to root (objectId "0")
+    const browseObjectId = objectId || '0';
 
     return new Promise((resolve) => {
-      // POST to /navigate endpoint
-      const postData = `<navigate source="STORED_MUSIC" sourceAccount="${sourceAccount}" />`;
+      // UPnP SOAP request to browse DLNA content
+      const soapBody = `<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+    <u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1">
+      <ObjectID>${browseObjectId}</ObjectID>
+      <BrowseFlag>BrowseDirectChildren</BrowseFlag>
+      <Filter>*</Filter>
+      <StartingIndex>0</StartingIndex>
+      <RequestedCount>200</RequestedCount>
+      <SortCriteria></SortCriteria>
+    </u:Browse>
+  </s:Body>
+</s:Envelope>`;
 
       const options = {
-        hostname: host,
-        port: 8090,
-        path: '/navigate',
+        hostname: serverIp,
+        port: 8200,  // MiniDLNA default port
+        path: '/ctl/ContentDir',
         method: 'POST',
         headers: {
-          'Content-Type': 'application/xml',
-          'Content-Length': Buffer.byteLength(postData),
+          'Content-Type': 'text/xml; charset="utf-8"',
+          'SOAPAction': '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"',
+          'Content-Length': Buffer.byteLength(soapBody),
         },
-        timeout: 5000,
+        timeout: 10000,
       };
 
       const req = http.request(options, (res) => {
@@ -170,31 +177,55 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
         res.on('end', async () => {
           try {
             const result = await parseStringPromise(data, { explicitArray: false });
-            const response = result.navigateResponse;
+            const browseResponse = result['s:Envelope']?.['s:Body']?.['u:BrowseResponse'];
 
-            if (!response || !response.items || !response.items.item) {
-              resolve({ items: [], location: location || '0' });
+            if (!browseResponse || !browseResponse.Result) {
+              resolve({ items: [], objectId: browseObjectId });
               return;
             }
 
-            // Normalize to array
-            const items = Array.isArray(response.items.item)
-              ? response.items.item
-              : [response.items.item];
+            // Parse the DIDL-Lite XML inside Result
+            const didlResult = await parseStringPromise(browseResponse.Result, { explicitArray: false });
+            const didl = didlResult['DIDL-Lite'];
 
-            const parsedItems = items.map(item => {
-              // Extract ContentItem info
-              const contentItem = item.ContentItem;
-              return {
-                name: item.name,
-                type: item.type, // 'dir' or 'track'
-                playable: item.$.Playable === '1',
-                location: contentItem?.$.location || '',
-                sourceAccount: contentItem?.$.sourceAccount || sourceAccount,
-              };
-            });
+            if (!didl) {
+              resolve({ items: [], objectId: browseObjectId });
+              return;
+            }
 
-            resolve({ items: parsedItems, location: location || '0' });
+            const items = [];
+
+            // Process containers (folders)
+            if (didl.container) {
+              const containers = Array.isArray(didl.container) ? didl.container : [didl.container];
+              for (const c of containers) {
+                // Skip system folders like @eaDir
+                if (c['dc:title']?.startsWith('@')) continue;
+                items.push({
+                  name: c['dc:title'] || 'Unknown',
+                  type: 'dir',
+                  objectId: c.$.id,
+                  parentId: c.$.parentID,
+                });
+              }
+            }
+
+            // Process items (tracks)
+            if (didl.item) {
+              const tracks = Array.isArray(didl.item) ? didl.item : [didl.item];
+              for (const t of tracks) {
+                items.push({
+                  name: t['dc:title'] || 'Unknown',
+                  type: 'track',
+                  objectId: t.$.id,
+                  parentId: t.$.parentID,
+                  artist: t['upnp:artist'] || t['dc:creator'] || '',
+                  album: t['upnp:album'] || '',
+                });
+              }
+            }
+
+            resolve({ items, objectId: browseObjectId });
           } catch (error) {
             resolve({ error: error.message, items: [] });
           }
@@ -207,41 +238,7 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
         resolve({ error: 'Timeout', items: [] });
       });
 
-      req.write(postData);
-      req.end();
-    });
-  }
-
-  // Helper to select a NAS folder (for navigation)
-  selectNasFolder(host, location, sourceAccount) {
-    return new Promise((resolve) => {
-      const postData = `<?xml version="1.0" encoding="UTF-8"?><ContentItem source="STORED_MUSIC" location="${location}" sourceAccount="${sourceAccount}" isPresetable="true"><itemName>Folder</itemName></ContentItem>`;
-
-      const options = {
-        hostname: host,
-        port: 8090,
-        path: '/select',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/xml',
-          'Content-Length': Buffer.byteLength(postData),
-        },
-        timeout: 5000,
-      };
-
-      const req = http.request(options, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => resolve(data));
-      });
-
-      req.on('error', () => resolve(null));
-      req.on('timeout', () => {
-        req.destroy();
-        resolve(null);
-      });
-
-      req.write(postData);
+      req.write(soapBody);
       req.end();
     });
   }
