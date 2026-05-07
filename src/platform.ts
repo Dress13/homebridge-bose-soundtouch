@@ -146,7 +146,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
             });
           } else {
             // Device has MAC in config but not found via mDNS (offline)
-            this.log.info(`${deviceConfig.name}: not found via mDNS (MAC: ${configMac}), using config IP ${deviceConfig.host} (will retry)`);
+            this.log.info(`${deviceConfig.name}: offline (MAC: ${configMac}), using IP ${deviceConfig.host}`);
             matchedConfigs.add(deviceConfig);
             devicesToRegister.set(deviceConfig.host, {
               config: deviceConfig,
@@ -178,7 +178,9 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
             this.updateDeviceConfigMac(deviceConfig.host, foundMac);
           } else {
             // Can't reach config IP and no MAC - register with old IP, retry will handle it
-            this.log.warn(`${deviceConfig.name}: unreachable at ${deviceConfig.host} and no MAC in config. Add MAC to config for reliable matching.`);
+            this.log.warn(
+              `${deviceConfig.name}: unreachable at ${deviceConfig.host}, no MAC in config.`,
+            );
             matchedConfigs.add(deviceConfig);
             devicesToRegister.set(deviceConfig.host, { config: deviceConfig });
           }
