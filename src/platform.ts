@@ -8,6 +8,7 @@ import {
   Characteristic,
   Categories,
 } from 'homebridge';
+import * as fs from 'fs';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { SoundTouchAccessory } from './soundtouchAccessory';
 import { SoundTouchDiscovery, DiscoveredDevice } from './discovery';
@@ -79,10 +80,10 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   }
 
   private async discoverDevices(): Promise<void> {
-    // Final list of devices to register: host -> { config, mac }
     const devicesToRegister: Map<string, { config: DeviceConfig; mac?: string }> = new Map();
-    // Track which config entries have been matched
     const matchedConfigs = new Set<DeviceConfig>();
+    // Track IP changes to save to config file: MAC -> { newHost, mac }
+    const ipUpdates: Map<string, { newHost: string; mac: string }> = new Map();
 
     // Always run mDNS to find current IPs
     this.log.info('Starting mDNS discovery...');
@@ -137,6 +138,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
             discoveredByMac.delete(configMac);
             if (discovered.host !== deviceConfig.host) {
               this.log.info(`${deviceConfig.name}: IP updated ${deviceConfig.host} -> ${discovered.host} (MAC: ${configMac})`);
+              ipUpdates.set(configMac, { newHost: discovered.host, mac: configMac });
             } else {
               this.log.info(`${deviceConfig.name}: IP unchanged ${discovered.host} (MAC: ${configMac})`);
             }
@@ -174,8 +176,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
               config: { ...deviceConfig, deviceID: foundMac },
               mac: foundMac,
             });
-            // Save MAC to config for next startup
-            this.updateDeviceConfigMac(deviceConfig.host, foundMac);
+            // MAC will be saved when we saveConfigUpdates later
           } else {
             // Can't reach config IP and no MAC - register with old IP, retry will handle it
             this.log.warn(
@@ -224,6 +225,9 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
       },
     );
 
+    // Save updated IPs to config.json
+    this.saveConfigUpdates(ipUpdates);
+
     // Remove old cached platform accessories
     if (this.accessories.length > 0) {
       this.log.info(`Removing ${this.accessories.length} old cached accessory(ies)`);
@@ -237,15 +241,40 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     }
   }
 
-  private updateDeviceConfigMac(host: string, mac: string): void {
-    // Update the config in memory and persist via Homebridge config API
+  private saveConfigUpdates(
+    updates: Map<string, { newHost: string; mac: string }>,
+  ): void {
+    if (updates.size === 0) {
+      return;
+    }
     try {
-      const deviceConfig = this.config.devices?.find(d => d.host === host);
-      if (deviceConfig) {
-        deviceConfig.deviceID = mac;
+      const configPath = this.api.user.configPath();
+      const rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const platforms = rawConfig.platforms as PlatformConfig[];
+      const ourPlatform = platforms?.find(
+        (p) => p.platform === PLATFORM_NAME,
+      );
+      if (!ourPlatform?.devices) {
+        return;
+      }
+      let changed = false;
+      for (const device of ourPlatform.devices as DeviceConfig[]) {
+        const deviceMac = device.deviceID?.toUpperCase();
+        if (!deviceMac) {
+          continue;
+        }
+        const update = updates.get(deviceMac);
+        if (update && device.host !== update.newHost) {
+          device.host = update.newHost;
+          changed = true;
+        }
+      }
+      if (changed) {
+        fs.writeFileSync(configPath, JSON.stringify(rawConfig, null, 4));
+        this.log.info('Config saved with updated IP addresses');
       }
     } catch (error) {
-      this.log.debug('Could not update config MAC:', error);
+      this.log.error('Failed to save config:', error);
     }
   }
 
