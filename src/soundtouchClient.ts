@@ -96,7 +96,7 @@ export type KeyValue =
   | 'ADD_FAVORITE' | 'REMOVE_FAVORITE';
 
 export class SoundTouchClient {
-  private readonly host: string;
+  private host: string;
   private readonly port: number;
   private readonly timeout: number;
 
@@ -104,6 +104,10 @@ export class SoundTouchClient {
     this.host = host;
     this.port = port;
     this.timeout = timeout;
+  }
+
+  updateHost(host: string): void {
+    this.host = host;
   }
 
   private async request(method: 'GET' | 'POST', path: string, body?: string): Promise<string> {

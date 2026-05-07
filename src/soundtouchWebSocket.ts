@@ -61,7 +61,7 @@ export interface ConnectionStateUpdate {
 
 export class SoundTouchWebSocket extends EventEmitter {
   private ws: WebSocket | null = null;
-  private readonly host: string;
+  private host: string;
   private readonly port: number;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -111,6 +111,13 @@ export class SoundTouchWebSocket extends EventEmitter {
       this.emit('error', error instanceof Error ? error : new Error(String(error)));
       this.scheduleReconnect();
     }
+  }
+
+  updateHost(host: string): void {
+    this.host = host;
+    // Reconnect with new host
+    this.disconnect();
+    this.connect();
   }
 
   disconnect(): void {

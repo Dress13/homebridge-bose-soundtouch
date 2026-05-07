@@ -627,12 +627,30 @@ export class SoundTouchAccessory {
 
   // Public methods
 
+  updateHost(newHost: string): void {
+    this.platform.log.info(`${this.accessory.displayName} IP changed: ${this.deviceConfig.host} -> ${newHost}`);
+    (this.deviceConfig as { host: string }).host = newHost;
+    this.client.updateHost(newHost);
+    this.webSocket.updateHost(newHost);
+
+    // If we were retrying initialization, cancel and retry immediately with new IP
+    if (this.initRetryTimer) {
+      clearTimeout(this.initRetryTimer);
+      this.initRetryTimer = undefined;
+      this.initialize();
+    }
+  }
+
   getClient(): SoundTouchClient {
     return this.client;
   }
 
   getDeviceInfo(): DeviceInfo | undefined {
     return this.deviceInfo;
+  }
+
+  getHost(): string {
+    return this.deviceConfig.host;
   }
 
   destroy(): void {
