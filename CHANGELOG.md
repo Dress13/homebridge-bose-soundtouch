@@ -1,28 +1,28 @@
 # Changelog
 
-## v1.9.6
-- **Automatisches IP-Remapping beim Start** - Config-IPs werden beim Start per mDNS Discovery und API-Abfrage automatisch aktualisiert. Geräte werden erst per Name identifiziert, dann mit der aktuellen IP verbunden. Stale IPs in der Config sind kein Problem mehr.
-- **IP-Tracking per MAC-Adresse** - Nach dem Start werden IP-Wechsel per MAC-Adresse erkannt, sodass auch Umbenennungen kein Problem sind
+## v1.13.0
+- **Hardware-Buttons wiederhergestellt** - Die physischen Preset-Tasten 1-6 auf der Box funktionieren wieder! Das Plugin erkennt den Button-Druck per WebSocket (`nowSelectionUpdated`) und spielt den konfigurierten Content per DLNA ab. Keine DNS-Redirects oder externe Server nötig.
 
-## v1.9.2 - v1.9.5
-- **Retry bei offline Geräten** - Geräte die beim Start nicht erreichbar sind, werden alle 30 Sekunden erneut versucht
-- **Status-Refresh bei WebSocket-Reconnect** - Nach WebSocket-(Neu-)Verbindung wird der aktuelle Status sofort abgefragt
-- **IP-Wechsel erkennen** - Laufende mDNS-Überwachung für IP-Änderungen
+## v1.12.0 - v1.12.3
+- **Radio-Streaming nach Cloud-Shutdown** - Internet Radio läuft jetzt über DLNA (`SetAVTransportURI` auf Port 8091) statt über die abgeschaltete Bose Cloud. HTTPS-URLs werden automatisch zu HTTP konvertiert.
+- **NAS/DLNA nach Cloud-Shutdown** - NAS-Presets lösen die DLNA ObjectID zur direkten Media-URL auf und spielen über DLNA Port 8091 statt dem deaktivierten `STORED_MUSIC` Source-Typ.
 
-## v1.9.2
-- **Retry bei offline Geräten** - Geräte die beim Start nicht erreichbar sind, werden alle 30 Sekunden erneut versucht statt dauerhaft aufgegeben
-- **Status-Refresh bei WebSocket-Reconnect** - Nach einer WebSocket-(Neu-)Verbindung wird der aktuelle Power- und Volume-Status sofort abgefragt, damit HomeKit immer den korrekten Zustand anzeigt
+## v1.11.0 - v1.11.5
+- **MAC-basierte Geräte-Identifikation** - Geräte werden per MAC-Adresse (`deviceID`) identifiziert statt per IP oder Name. Zuverlässig auch nach IP-Wechsel oder Umbenennung.
+- **HomeKit UUID aus MAC** - UUID wird aus der MAC generiert, damit HomeKit-Geräte stabil bleiben auch wenn sich die IP ändert.
+- **Auto-Save Config** - Geänderte IPs werden automatisch in die `config.json` zurückgeschrieben.
+- **Leere Presets ausgeblendet** - Nicht konfigurierte Preset-Slots werden in HomeKit nicht angezeigt.
+- **Alte Device-Presets ignoriert** - Nur Presets aus der Homebridge-Config werden angezeigt, nicht die alten auf der Box gespeicherten.
+- **Input Source Namen** - Korrekte Anzeige der Preset-Namen in HomeKit.
+
+## v1.9.2 - v1.10.0
+- **Retry bei offline Geräten** - Alle 30 Sekunden erneuter Verbindungsversuch.
+- **Status-Refresh bei WebSocket-Reconnect** - HomeKit zeigt immer den aktuellen Status.
+- **mDNS Discovery** - Automatische Erkennung läuft immer (unabhängig von `autoDiscover`).
+- **IP-Remapping** - IPs werden beim Start per mDNS aufgelöst und in der Config aktualisiert.
 
 ## v1.9.1
 - NAS/DLNA Unterstützung mit Browser-Wizard in der Homebridge UI
-- Konfigurierbare Presets für NAS/DLNA-Quellen
 
 ## v1.8.6
 - Initiale Veröffentlichung
-- Automatische Geräteerkennung via mDNS
-- External Accessories mit wählbaren Icons
-- Television Service mit Apple TV Remote Steuerung
-- 6 Presets + AUX + Bluetooth als Input Sources
-- Custom Radio Stations, Spotify, Amazon Music, Deezer, TuneIn
-- Echtzeit-Updates via WebSocket
-- Lautstärke-Slider als Lightbulb Service
