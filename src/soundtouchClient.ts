@@ -584,13 +584,15 @@ export class SoundTouchClient {
     await this.post('/select', xml);
   }
 
+  private playlist: string[] = [];
+  private playlistIndex = 0;
+
   async playStoredMusic(
     location: string, sourceAccount: string, nasServerIp?: string,
   ): Promise<void> {
     // After Bose cloud shutdown, STORED_MUSIC source is broken.
-    // Instead, resolve the DLNA ObjectID to a direct URL and play via DLNA.
+    // Resolve DLNA ObjectID to track URLs and play via DLNA.
     if (!nasServerIp) {
-      // Try to get server IP from listMediaServers
       const serverInfo = await this.getMediaServerIp(sourceAccount);
       nasServerIp = serverInfo;
     }
@@ -598,14 +600,34 @@ export class SoundTouchClient {
       throw new Error('Cannot resolve NAS server IP');
     }
 
-    // Browse MiniDLNA to get direct URL for the ObjectID
-    const trackUrl = await this.resolveNasObjectId(nasServerIp, location);
-    if (!trackUrl) {
-      throw new Error(`Cannot resolve NAS ObjectID: ${location}`);
+    // Get ALL tracks from the album/folder
+    const tracks = await this.resolveNasObjectId(nasServerIp, location);
+    if (!tracks || tracks.length === 0) {
+      throw new Error(`No tracks found for ObjectID: ${location}`);
     }
 
-    // Play via DLNA
-    await this.playUrl(trackUrl);
+    // Store playlist and start playing first track
+    this.playlist = tracks;
+    this.playlistIndex = 0;
+    await this.playUrl(this.playlist[0]);
+  }
+
+  async playNextTrack(): Promise<boolean> {
+    if (this.playlist.length === 0) {
+      return false;
+    }
+    this.playlistIndex++;
+    if (this.playlistIndex >= this.playlist.length) {
+      this.playlist = [];
+      this.playlistIndex = 0;
+      return false;
+    }
+    await this.playUrl(this.playlist[this.playlistIndex]);
+    return true;
+  }
+
+  getPlaylistInfo(): { index: number; total: number } {
+    return { index: this.playlistIndex, total: this.playlist.length };
   }
 
   private async getMediaServerIp(sourceAccount: string): Promise<string | undefined> {
@@ -630,8 +652,8 @@ export class SoundTouchClient {
 
   private async resolveNasObjectId(
     serverIp: string, objectId: string,
-  ): Promise<string | undefined> {
-    // Browse the DLNA server to find the first track URL in the given ObjectID
+  ): Promise<string[]> {
+    // Browse the DLNA server to get ALL track URLs in the given ObjectID
     const soapBody = '<?xml version="1.0"?>' +
       '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
       's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
@@ -640,7 +662,7 @@ export class SoundTouchClient {
       `<ObjectID>${objectId}</ObjectID>` +
       '<BrowseFlag>BrowseDirectChildren</BrowseFlag>' +
       '<Filter>*</Filter><StartingIndex>0</StartingIndex>' +
-      '<RequestedCount>1</RequestedCount>' +
+      '<RequestedCount>500</RequestedCount>' +
       '<SortCriteria></SortCriteria>' +
       '</u:Browse></s:Body></s:Envelope>';
 
@@ -663,11 +685,17 @@ export class SoundTouchClient {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
-          // Extract first media URL from response
-          const urlMatch = data.match(
-            /http:\/\/[^"<]*\.(mp3|flac|wav|m4a|ogg|aac)/i,
-          );
-          resolve(urlMatch ? urlMatch[0] : undefined);
+          // Extract ALL media URLs from response
+          const regex = /http:\/\/[^"<]*\.(mp3|flac|wav|m4a|ogg|aac)/gi;
+          const urls: string[] = [];
+          let match;
+          while ((match = regex.exec(data)) !== null) {
+            // Skip album art URLs
+            if (!match[0].includes('AlbumArt')) {
+              urls.push(match[0]);
+            }
+          }
+          resolve(urls);
         });
       });
 

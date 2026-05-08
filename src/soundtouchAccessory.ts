@@ -538,6 +538,21 @@ export class SoundTouchAccessory {
       }
 
       this.platform.log.debug(`${this.accessory.displayName} Source: ${data.source}, Playing: ${data.playStatus}`);
+
+      // Auto-play next track when current track ends (NAS playlist)
+      if (data.playStatus === 'STOP_STATE' && data.source === 'UPNP') {
+        const info = this.client.getPlaylistInfo();
+        if (info.total > 0) {
+          this.client.playNextTrack().then((hasNext) => {
+            if (hasNext) {
+              const newInfo = this.client.getPlaylistInfo();
+              this.platform.log.info(
+                `${this.accessory.displayName} next track ${newInfo.index + 1}/${newInfo.total}`,
+              );
+            }
+          }).catch(() => { /* ignore */ });
+        }
+      }
     });
 
     this.webSocket.on('nowSelectionUpdated', (data: PresetSelectionUpdate) => {
