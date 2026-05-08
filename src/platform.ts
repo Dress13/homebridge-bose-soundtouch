@@ -9,8 +9,6 @@ import {
   Categories,
 } from 'homebridge';
 import * as fs from 'fs';
-import * as http from 'http';
-import * as os from 'os';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { SoundTouchAccessory } from './soundtouchAccessory';
 import { SoundTouchDiscovery, DiscoveredDevice } from './discovery';
@@ -53,8 +51,6 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   private readonly soundTouchAccessories: Map<string, SoundTouchAccessory> = new Map();
   private readonly externalAccessories: Map<string, PlatformAccessory> = new Map();
   private discovery?: SoundTouchDiscovery;
-  private radioServer?: http.Server;
-  private radioServerPort = 0;
 
   constructor(
     public readonly log: Logger,
@@ -67,7 +63,6 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
 
     this.api.on('didFinishLaunching', () => {
       this.log.debug('Executed didFinishLaunching callback');
-      this.startRadioServer();
       this.discoverDevices();
     });
 
@@ -318,66 +313,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
   }
 
-  private startRadioServer(): void {
-    // Local HTTP server that serves JSON descriptors for radio streams
-    // Bose SoundTouch LOCAL_INTERNET_RADIO requires a JSON URL, not a direct stream
-    this.radioServer = http.createServer((req, res) => {
-      const url = new URL(req.url || '', 'http://localhost');
-      const streamUrl = url.searchParams.get('url');
-      const name = url.searchParams.get('name') || 'Internet Radio';
-
-      if (!streamUrl) {
-        res.writeHead(400);
-        res.end('Missing url parameter');
-        return;
-      }
-
-      const descriptor = {
-        audio: {
-          hasPlaylist: false,
-          isRealtime: true,
-          streamUrl: streamUrl,
-        },
-        imageUrl: '',
-        name: name,
-        streamType: 'liveRadio',
-      };
-
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(descriptor));
-    });
-
-    this.radioServer.listen(0, () => {
-      const addr = this.radioServer!.address();
-      if (addr && typeof addr === 'object') {
-        this.radioServerPort = addr.port;
-        this.log.info(`Radio stream server running on port ${this.radioServerPort}`);
-      }
-    });
-  }
-
-  getRadioServerUrl(streamUrl: string, name: string): string {
-    const hostIp = this.getHostIp();
-    const params = new URLSearchParams({ url: streamUrl.trim(), name });
-    return `http://${hostIp}:${this.radioServerPort}/stream?${params}`;
-  }
-
-  private getHostIp(): string {
-    const interfaces = os.networkInterfaces();
-    for (const iface of Object.values(interfaces)) {
-      for (const addr of (iface as os.NetworkInterfaceInfo[])) {
-        if (addr.family === 'IPv4' && !addr.internal) {
-          return addr.address;
-        }
-      }
-    }
-    return '127.0.0.1';
-  }
-
   private cleanup(): void {
-    if (this.radioServer) {
-      this.radioServer.close();
-    }
     if (this.discovery) {
       this.discovery.stop();
     }

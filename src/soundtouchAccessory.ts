@@ -401,9 +401,7 @@ export class SoundTouchAccessory {
     switch (config.type) {
       case 'radio':
         if (config.url) {
-          const radioUrl = this.platform.getRadioServerUrl(config.url, config.name);
-          this.platform.log.debug(`Radio descriptor URL: ${radioUrl}`);
-          await this.client.playUrl(radioUrl, config.name);
+          await this.client.playUrl(config.url, config.name);
         }
         break;
 
