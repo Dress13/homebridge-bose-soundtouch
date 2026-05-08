@@ -400,6 +400,11 @@ export class SoundTouchAccessory {
   private async playConfiguredPreset(config: PresetConfig): Promise<void> {
     this.platform.log.debug(`Playing configured preset: ${config.name} (${config.type})`);
 
+    // Clear any active NAS playlist when switching to a different source
+    if (config.type !== 'nas') {
+      this.client.clearPlaylist();
+    }
+
     switch (config.type) {
       case 'radio':
         if (config.url) {
