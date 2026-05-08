@@ -478,14 +478,20 @@ export class SoundTouchClient {
   async playUrl(url: string): Promise<void> {
     // Play HTTP stream via DLNA SetAVTransportURI on port 8091
     // This works after the Bose cloud shutdown (LOCAL_INTERNET_RADIO removed)
-    const trimmedUrl = url.trim();
+    // Bose SoundTouch doesn't support HTTPS streams - convert to HTTP
+    const httpUrl = url.trim().replace(/^https:\/\//i, 'http://');
+    // XML-escape the URL
+    const xmlUrl = httpUrl
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
     const soap = '<?xml version="1.0" encoding="utf-8"?>' +
       '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
       's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
       '<s:Body>' +
       '<u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">' +
       '<InstanceID>0</InstanceID>' +
-      `<CurrentURI>${trimmedUrl}</CurrentURI>` +
+      `<CurrentURI>${xmlUrl}</CurrentURI>` +
       '<CurrentURIMetaData></CurrentURIMetaData>' +
       '</u:SetAVTransportURI>' +
       '</s:Body></s:Envelope>';
