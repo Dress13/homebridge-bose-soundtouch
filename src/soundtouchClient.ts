@@ -478,18 +478,9 @@ export class SoundTouchClient {
   async playUrl(url: string, name = 'Internet Radio'): Promise<void> {
     // Play HTTP stream directly without Bose cloud (cloud is discontinued)
     const trimmedUrl = url.trim();
-    const builder = new Builder({ headless: true });
-    const xml = builder.buildObject({
-      ContentItem: {
-        $: {
-          source: 'INTERNET_RADIO',
-          location: trimmedUrl,
-          sourceAccount: '',
-          isPresetable: 'false',
-        },
-        itemName: name,
-      },
-    });
+    // SoundTouch devices may not support HTTPS - try HTTP fallback
+    const httpUrl = trimmedUrl.replace(/^https:\/\//, 'http://');
+    const xml = `<ContentItem source="INTERNET_RADIO" location="${httpUrl}"><itemName>${name}</itemName></ContentItem>`;
     await this.post('/select', xml);
   }
 
