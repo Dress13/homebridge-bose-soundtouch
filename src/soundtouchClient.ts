@@ -477,13 +477,13 @@ export class SoundTouchClient {
 
   async playUrl(url: string, name = 'Internet Radio'): Promise<void> {
     // Play HTTP stream directly without Bose cloud (cloud is discontinued)
+    const trimmedUrl = url.trim();
     const builder = new Builder({ headless: true });
     const xml = builder.buildObject({
       ContentItem: {
         $: {
-          source: 'HTTP_RADIO',
-          type: 'stationurl',
-          location: url,
+          source: 'INTERNET_RADIO',
+          location: trimmedUrl,
           sourceAccount: '',
           isPresetable: 'false',
         },
