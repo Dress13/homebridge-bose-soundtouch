@@ -475,7 +475,7 @@ export class SoundTouchClient {
     await this.selectSource('BLUETOOTH');
   }
 
-  async playUrl(url: string, _name = 'Internet Radio'): Promise<void> {
+  async playUrl(url: string): Promise<void> {
     // Play HTTP stream via DLNA SetAVTransportURI on port 8091
     // This works after the Bose cloud shutdown (LOCAL_INTERNET_RADIO removed)
     const trimmedUrl = url.trim();
@@ -517,7 +517,10 @@ export class SoundTouchClient {
       });
 
       req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('DLNA timeout')); });
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('DLNA timeout'));
+      });
       req.write(soap);
       req.end();
     });
