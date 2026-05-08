@@ -110,6 +110,14 @@ export class SoundTouchClient {
     this.host = host;
   }
 
+  private xmlEscape(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   private async request(method: 'GET' | 'POST', path: string, body?: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const options: http.RequestOptions = {
@@ -475,16 +483,28 @@ export class SoundTouchClient {
     await this.selectSource('BLUETOOTH');
   }
 
-  async playUrl(url: string): Promise<void> {
+  async playUrl(url: string, title = ''): Promise<void> {
     // Play HTTP stream via DLNA SetAVTransportURI on port 8091
     // This works after the Bose cloud shutdown (LOCAL_INTERNET_RADIO removed)
     // Bose SoundTouch doesn't support HTTPS streams - convert to HTTP
     const httpUrl = url.trim().replace(/^https:\/\//i, 'http://');
-    // XML-escape the URL
-    const xmlUrl = httpUrl
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    const xmlUrl = this.xmlEscape(httpUrl);
+    const xmlTitle = this.xmlEscape(title);
+
+    // DIDL-Lite metadata so the display shows the track/station name
+    let metadata = '';
+    if (title) {
+      const didl = '&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;'
+        + ' xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;'
+        + ' xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&gt;'
+        + '&lt;item id=&quot;0&quot; parentID=&quot;0&quot; restricted=&quot;1&quot;&gt;'
+        + `&lt;dc:title&gt;${xmlTitle}&lt;/dc:title&gt;`
+        + '&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;'
+        + `&lt;res&gt;${xmlUrl}&lt;/res&gt;`
+        + '&lt;/item&gt;&lt;/DIDL-Lite&gt;';
+      metadata = didl;
+    }
+
     const soap = '<?xml version="1.0" encoding="utf-8"?>' +
       '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
       's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
@@ -492,7 +512,7 @@ export class SoundTouchClient {
       '<u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">' +
       '<InstanceID>0</InstanceID>' +
       `<CurrentURI>${xmlUrl}</CurrentURI>` +
-      '<CurrentURIMetaData></CurrentURIMetaData>' +
+      `<CurrentURIMetaData>${metadata}</CurrentURIMetaData>` +
       '</u:SetAVTransportURI>' +
       '</s:Body></s:Envelope>';
 
@@ -584,14 +604,13 @@ export class SoundTouchClient {
     await this.post('/select', xml);
   }
 
-  private playlist: string[] = [];
+  private playlist: Array<{ url: string; title: string }> = [];
   private playlistIndex = 0;
 
   async playStoredMusic(
-    location: string, sourceAccount: string, nasServerIp?: string,
+    location: string, sourceAccount: string,
+    nasServerIp?: string, albumName?: string,
   ): Promise<void> {
-    // After Bose cloud shutdown, STORED_MUSIC source is broken.
-    // Resolve DLNA ObjectID to track URLs and play via DLNA.
     if (!nasServerIp) {
       const serverInfo = await this.getMediaServerIp(sourceAccount);
       nasServerIp = serverInfo;
@@ -600,16 +619,15 @@ export class SoundTouchClient {
       throw new Error('Cannot resolve NAS server IP');
     }
 
-    // Get ALL tracks from the album/folder
     const tracks = await this.resolveNasObjectId(nasServerIp, location);
     if (!tracks || tracks.length === 0) {
       throw new Error(`No tracks found for ObjectID: ${location}`);
     }
 
-    // Store playlist and start playing first track
     this.playlist = tracks;
     this.playlistIndex = 0;
-    await this.playUrl(this.playlist[0]);
+    const first = this.playlist[0];
+    await this.playUrl(first.url, first.title || albumName || '');
   }
 
   async playNextTrack(): Promise<boolean> {
@@ -622,7 +640,8 @@ export class SoundTouchClient {
       this.playlistIndex = 0;
       return false;
     }
-    await this.playUrl(this.playlist[this.playlistIndex]);
+    const track = this.playlist[this.playlistIndex];
+    await this.playUrl(track.url, track.title);
     return true;
   }
 
@@ -657,8 +676,8 @@ export class SoundTouchClient {
 
   private async resolveNasObjectId(
     serverIp: string, objectId: string,
-  ): Promise<string[]> {
-    // Browse the DLNA server to get ALL track URLs in the given ObjectID
+  ): Promise<Array<{ url: string; title: string }>> {
+    // Browse the DLNA server to get ALL track URLs + titles
     const soapBody = '<?xml version="1.0"?>' +
       '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
       's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
@@ -690,17 +709,30 @@ export class SoundTouchClient {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
-          // Extract ALL media URLs from response
-          const regex = /http:\/\/[^"<]*\.(mp3|flac|wav|m4a|ogg|aac)/gi;
-          const urls: string[] = [];
-          let match;
-          while ((match = regex.exec(data)) !== null) {
-            // Skip album art URLs
-            if (!match[0].includes('AlbumArt')) {
-              urls.push(match[0]);
+          // Decode XML entities in DIDL-Lite response
+          const decoded = data
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+          // Extract tracks with title and URL
+          const tracks: Array<{ url: string; title: string }> = [];
+          const itemRegex = /<item[^>]*>[\s\S]*?<\/item>/gi;
+          let itemMatch;
+          while ((itemMatch = itemRegex.exec(decoded)) !== null) {
+            const item = itemMatch[0];
+            const urlMatch = item.match(
+              /http:\/\/[^"<]*\.(mp3|flac|wav|m4a|ogg|aac)/i,
+            );
+            const titleMatch = item.match(
+              /<dc:title>([^<]*)<\/dc:title>/i,
+            );
+            if (urlMatch && !urlMatch[0].includes('AlbumArt')) {
+              tracks.push({
+                url: urlMatch[0],
+                title: titleMatch ? titleMatch[1] : '',
+              });
             }
           }
-          resolve(urls);
+          resolve(tracks);
         });
       });
 
