@@ -264,7 +264,7 @@ export class SoundTouchAccessory {
 
       const inputService = this.accessory.addService(
         this.platform.Service.InputSource,
-        `preset-${i}`,
+        presetName,
         `preset-${i}`,
       );
 
@@ -285,7 +285,7 @@ export class SoundTouchAccessory {
     // Add AUX input (Identifier 7)
     const auxService = this.accessory.addService(
       this.platform.Service.InputSource,
-      'aux',
+      'AUX',
       'aux',
     );
     auxService
@@ -301,7 +301,7 @@ export class SoundTouchAccessory {
     // Add Bluetooth input (Identifier 8)
     const btService = this.accessory.addService(
       this.platform.Service.InputSource,
-      'bluetooth',
+      'Bluetooth',
       'bluetooth',
     );
     btService
