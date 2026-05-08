@@ -630,6 +630,11 @@ export class SoundTouchClient {
     return { index: this.playlistIndex, total: this.playlist.length };
   }
 
+  clearPlaylist(): void {
+    this.playlist = [];
+    this.playlistIndex = 0;
+  }
+
   private async getMediaServerIp(sourceAccount: string): Promise<string | undefined> {
     const result = await this.get('/listMediaServers') as {
       ListMediaServersResponse?: {
