@@ -584,23 +584,101 @@ export class SoundTouchClient {
     await this.post('/select', xml);
   }
 
-  async playStoredMusic(location: string, sourceAccount: string, name = 'NAS'): Promise<void> {
-    // STORED_MUSIC for NAS/DLNA servers
-    // location: DLNA Object-ID (e.g., "64$1$1$0" for a folder/album)
-    // sourceAccount: Server-ID + "/0" (e.g., "4d696e69-444c-164e-9d41-7085c2aaffc5/0")
-    const builder = new Builder({ headless: true });
-    const xml = builder.buildObject({
-      ContentItem: {
-        $: {
-          source: 'STORED_MUSIC',
-          location: location,
-          sourceAccount: sourceAccount,
-          isPresetable: 'true',
+  async playStoredMusic(
+    location: string, sourceAccount: string, nasServerIp?: string,
+  ): Promise<void> {
+    // After Bose cloud shutdown, STORED_MUSIC source is broken.
+    // Instead, resolve the DLNA ObjectID to a direct URL and play via DLNA.
+    if (!nasServerIp) {
+      // Try to get server IP from listMediaServers
+      const serverInfo = await this.getMediaServerIp(sourceAccount);
+      nasServerIp = serverInfo;
+    }
+    if (!nasServerIp) {
+      throw new Error('Cannot resolve NAS server IP');
+    }
+
+    // Browse MiniDLNA to get direct URL for the ObjectID
+    const trackUrl = await this.resolveNasObjectId(nasServerIp, location);
+    if (!trackUrl) {
+      throw new Error(`Cannot resolve NAS ObjectID: ${location}`);
+    }
+
+    // Play via DLNA
+    await this.playUrl(trackUrl);
+  }
+
+  private async getMediaServerIp(sourceAccount: string): Promise<string | undefined> {
+    const result = await this.get('/listMediaServers') as {
+      ListMediaServersResponse?: {
+        media_server?: { $: { id: string; ip: string } }
+          | Array<{ $: { id: string; ip: string } }>;
+      };
+    };
+    const response = result.ListMediaServersResponse;
+    if (!response?.media_server) {
+      return undefined;
+    }
+    const servers = Array.isArray(response.media_server)
+      ? response.media_server : [response.media_server];
+    // Match by server ID (sourceAccount without "/0")
+    const serverId = sourceAccount.replace(/\/0$/, '');
+    const server = servers.find(s => s.$.id === serverId)
+      || servers[0];
+    return server?.$.ip;
+  }
+
+  private async resolveNasObjectId(
+    serverIp: string, objectId: string,
+  ): Promise<string | undefined> {
+    // Browse the DLNA server to find the first track URL in the given ObjectID
+    const soapBody = '<?xml version="1.0"?>' +
+      '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
+      's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+      '<s:Body>' +
+      '<u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1">' +
+      `<ObjectID>${objectId}</ObjectID>` +
+      '<BrowseFlag>BrowseDirectChildren</BrowseFlag>' +
+      '<Filter>*</Filter><StartingIndex>0</StartingIndex>' +
+      '<RequestedCount>1</RequestedCount>' +
+      '<SortCriteria></SortCriteria>' +
+      '</u:Browse></s:Body></s:Envelope>';
+
+    return new Promise((resolve, reject) => {
+      const options: http.RequestOptions = {
+        hostname: serverIp,
+        port: 8200,
+        path: '/ctl/ContentDir',
+        method: 'POST',
+        timeout: this.timeout,
+        headers: {
+          'Content-Type': 'text/xml; charset="utf-8"',
+          'SOAPAction':
+            '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"',
+          'Content-Length': Buffer.byteLength(soapBody),
         },
-        itemName: name,
-      },
+      };
+
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          // Extract first media URL from response
+          const urlMatch = data.match(
+            /http:\/\/[^"<]*\.(mp3|flac|wav|m4a|ogg|aac)/i,
+          );
+          resolve(urlMatch ? urlMatch[0] : undefined);
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('NAS browse timeout'));
+      });
+      req.write(soapBody);
+      req.end();
     });
-    await this.post('/select', xml);
   }
 
   async playTuneIn(stationId: string): Promise<void> {
