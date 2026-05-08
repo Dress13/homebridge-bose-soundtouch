@@ -401,7 +401,7 @@ export class SoundTouchAccessory {
     switch (config.type) {
       case 'radio':
         if (config.url) {
-          await this.client.playUrl(config.url, config.name);
+          await this.client.playUrl(config.url);
         }
         break;
 
