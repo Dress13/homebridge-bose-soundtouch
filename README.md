@@ -1,67 +1,69 @@
 # Homebridge Bose SoundTouch
 
-Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple HomeKit.
+[🇩🇪 Deutsche Version](README.de.md)
 
-**Vollständig funktionsfähig nach dem Bose Cloud-Shutdown (Mai 2026)** - Radio, NAS und Hardware-Buttons funktionieren ohne Cloud über lokales DLNA.
+A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
+
+**Fully functional after the Bose Cloud shutdown (May 2026)** - Radio, NAS and hardware buttons work without cloud via local DLNA.
 
 ## Features
 
-- **Automatische Erkennung** - Findet SoundTouch-Geräte automatisch im Netzwerk via mDNS
-- **MAC-basierte Identifikation** - Geräte werden per MAC-Adresse erkannt, IP-Wechsel per DHCP werden automatisch aufgelöst und in der Config gespeichert
-- **External Accessories** - Jedes Gerät erscheint als eigenständiges Accessory in HomeKit
-- **Television Service** - Volle Steuerung über die Apple TV Remote im Kontrollzentrum
-- **Internet Radio** - Eigene Radiosender als HTTP-Streams (läuft über DLNA, keine Cloud nötig)
-- **NAS/DLNA** - Musik von NAS-Servern als Presets konfigurierbar (mit Browser-Wizard)
-- **Hardware-Buttons** - Die physischen Preset-Tasten 1-6 auf der Box funktionieren wieder! Das Plugin fängt den Button-Druck per WebSocket ab und spielt den konfigurierten Content per DLNA
-- **Spotify & Amazon Music** - Streaming-Dienste weiterhin unterstützt
-- **Auto-Reconnect** - Offline-Geräte werden alle 30s erneut versucht
-- **Echtzeit-Updates** - WebSocket-Verbindung für sofortige Status-Änderungen in HomeKit
-- **Lautstärke-Slider** - Lautstärke als Helligkeitsregler in der Home App
+- **Auto Discovery** - Finds SoundTouch devices automatically via mDNS
+- **MAC-based Identification** - Devices are identified by MAC address, DHCP IP changes are resolved automatically and saved to config
+- **External Accessories** - Each device appears as a standalone accessory in HomeKit
+- **Television Service** - Full control via Apple TV Remote in Control Center
+- **Internet Radio** - Custom radio stations as HTTP streams (runs via DLNA, no cloud needed)
+- **NAS/DLNA** - Music from NAS servers as presets with album playback and auto-next-track (includes browser wizard)
+- **Hardware Buttons** - Physical preset buttons 1-6 on the speaker work again! The plugin intercepts the button press via WebSocket and plays the configured content via DLNA
+- **Spotify & Amazon Music** - Streaming services still supported
+- **Auto-Reconnect** - Offline devices retry every 30 seconds
+- **Real-time Updates** - WebSocket connection for instant status changes in HomeKit
+- **Volume Slider** - Volume as brightness slider in Home app
 
-## Bose Cloud-Shutdown (Mai 2026)
+## Bose Cloud Shutdown (May 2026)
 
-Die Bose SoundTouch Cloud wurde am 6. Mai 2026 abgeschaltet. Dieses Plugin ersetzt die Cloud-Funktionalität vollständig:
+The Bose SoundTouch Cloud was shut down on May 6, 2026. This plugin fully replaces cloud functionality:
 
-| Feature | Vor Shutdown | Nach Shutdown (dieses Plugin) |
-|---------|-------------|-------------------------------|
-| Radio-Streams | Über Bose Cloud | Direkt per DLNA (Port 8091) |
-| NAS/DLNA | Über STORED_MUSIC Source | Direkt per DLNA (Port 8091) |
-| Hardware-Buttons | Über Bose Cloud Presets | WebSocket-Interception + DLNA |
-| Spotify | Spotify Connect | Spotify Connect (unverändert) |
-| Amazon Music | Über Bose Cloud | Direkt (unverändert) |
-| TuneIn | Über Bose Cloud | **Nicht mehr verfügbar** - nutze HTTP-Streams stattdessen |
+| Feature | Before Shutdown | After Shutdown (this plugin) |
+|---------|----------------|------------------------------|
+| Radio Streams | Via Bose Cloud | Direct via DLNA (port 8091) |
+| NAS/DLNA | Via STORED_MUSIC source | Direct via DLNA (port 8091) |
+| Hardware Buttons | Via Bose Cloud presets | WebSocket interception + DLNA |
+| Spotify | Spotify Connect | Spotify Connect (unchanged) |
+| Amazon Music | Via Bose Cloud | Direct (unchanged) |
+| TuneIn | Via Bose Cloud | **No longer available** - use HTTP streams instead |
 
 ## Installation
 
-### Über Homebridge UI
+### Via Homebridge UI
 
-1. Suche nach `homebridge-bose-soundtouch` in der Plugin-Suche
-2. Klicke auf "Installieren"
+1. Search for `homebridge-bose-soundtouch` in the plugin search
+2. Click "Install"
 
-### Manuell via npm
+### Manual via npm
 
 ```bash
 npm install -g homebridge-bose-soundtouch
 ```
 
-## Geräte zu HomeKit hinzufügen
+## Adding Devices to HomeKit
 
-Dieses Plugin verwendet **External Accessories**:
+This plugin uses **External Accessories**:
 
-1. **Homebridge starten** - Die Geräte werden im Log angezeigt mit Setup Code
-2. **Home App öffnen** auf iPhone/iPad
-3. **"+" tippen** → **"Gerät hinzufügen"**
-4. **"Weitere Optionen..."** tippen
-5. **Gerät auswählen** (z.B. "Küche Bose 3BB1")
-6. **Setup Code eingeben** (Standard: 324-52-000)
-7. **Raum zuweisen**
-8. **Wiederholen** für jedes weitere Gerät
+1. **Start Homebridge** - Devices are shown in the log with a setup code
+2. **Open Home app** on iPhone/iPad
+3. **Tap "+"** then **"Add Accessory"**
+4. **Tap "More options..."**
+5. **Select device** (e.g. "Kitchen Bose 3BB1")
+6. **Enter setup code** (default: 324-52-000)
+7. **Assign room**
+8. **Repeat** for each device
 
-**Wichtig:** Die Geräte erscheinen nur wenn mDNS korrekt funktioniert. Bei Docker muss der Container entweder mit `--network host` oder `macvlan` laufen. Bei Konflikten mit anderen mDNS-Diensten (z.B. Matter Server) hilft `macvlan` mit eigener IP.
+**Important:** Devices only appear if mDNS works correctly. With Docker, the container must use either `--network host` or `macvlan`. If other mDNS services (e.g. Matter Server) conflict on port 5353, use `macvlan` with a dedicated IP.
 
-## Konfiguration
+## Configuration
 
-### Minimale Konfiguration (Auto-Discovery)
+### Minimal Configuration (Auto-Discovery)
 
 ```json
 {
@@ -74,7 +76,7 @@ Dieses Plugin verwendet **External Accessories**:
 }
 ```
 
-### Vollständige Konfiguration
+### Full Configuration
 
 ```json
 {
@@ -86,10 +88,10 @@ Dieses Plugin verwendet **External Accessories**:
       "discoveryTimeout": 10000,
       "devices": [
         {
-          "name": "Küche Bose",
+          "name": "Kitchen Bose",
           "host": "192.168.10.178",
           "deviceID": "689E194B157B",
-          "room": "Küche",
+          "room": "Kitchen",
           "deviceIcon": 26,
           "presets": [
             {
@@ -100,7 +102,14 @@ Dieses Plugin verwendet **External Accessories**:
             },
             {
               "slot": 2,
-              "name": "Gladiator",
+              "name": "My Playlist",
+              "type": "spotify",
+              "spotifyUri": "spotify:playlist:37i9dQZF1DX4WYpdgoIcn6",
+              "sourceAccount": "your-spotify-username"
+            },
+            {
+              "slot": 3,
+              "name": "Gladiator OST",
               "type": "nas",
               "nasLocation": "64$1$2F$1",
               "nasServer": "4d696e69-444c-164e-9d41-708bcda70226/0"
@@ -113,85 +122,89 @@ Dieses Plugin verwendet **External Accessories**:
 }
 ```
 
-### Konfigurationsoptionen
+### Configuration Options
 
-| Option | Typ | Standard | Beschreibung |
-|--------|-----|----------|--------------|
-| `platform` | string | **Pflicht** | Muss `"BoseSoundTouch"` sein |
-| `name` | string | **Pflicht** | Name der Plattform |
-| `autoDiscover` | boolean | `true` | Neue Geräte automatisch hinzufügen |
-| `discoveryTimeout` | number | `10000` | Timeout für mDNS Discovery in ms |
-| `devices` | array | `[]` | Konfigurierte Geräte |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `platform` | string | **Required** | Must be `"BoseSoundTouch"` |
+| `name` | string | **Required** | Platform name |
+| `autoDiscover` | boolean | `true` | Automatically add new devices |
+| `discoveryTimeout` | number | `10000` | mDNS discovery timeout in ms |
+| `devices` | array | `[]` | Configured devices |
 
-### Geräte-Konfiguration
+### Device Configuration
 
-| Option | Typ | Standard | Beschreibung |
-|--------|-----|----------|--------------|
-| `name` | string | - | Anzeigename des Geräts |
-| `host` | string | **Pflicht** | IP-Adresse (wird automatisch aktualisiert) |
-| `deviceID` | string | - | MAC-Adresse für zuverlässige Identifikation (wird automatisch gesetzt via Netzwerk-Scan in der UI) |
-| `room` | string | - | Raum-Zuordnung (optional) |
-| `deviceIcon` | number | `26` | HomeKit Icon (siehe unten) |
-| `presets` | array | `[]` | Preset-Konfiguration |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name` | string | - | Display name |
+| `host` | string | **Required** | IP address (auto-updated on IP change) |
+| `deviceID` | string | - | MAC address for reliable identification (auto-set via network scan in UI) |
+| `room` | string | - | Room assignment (optional) |
+| `deviceIcon` | number | `26` | HomeKit icon (see below) |
+| `presets` | array | `[]` | Preset configuration |
 
 ### Device Icons
 
-| Wert | Icon |
-|------|------|
-| `26` | Speaker (Lautsprecher) |
+| Value | Icon |
+|-------|------|
+| `26` | Speaker |
 | `34` | Audio Receiver |
-| `31` | Television (TV) |
+| `31` | Television |
 | `38` | AirPlay Speaker |
 | `39` | HomePod |
 
-### Preset-Konfiguration
+### Preset Configuration
 
-| Option | Typ | Beschreibung |
-|--------|-----|--------------|
-| `slot` | number | Preset-Taste (1-6) |
-| `name` | string | Anzeigename in HomeKit |
+| Option | Type | Description |
+|--------|------|-------------|
+| `slot` | number | Preset button (1-6) |
+| `name` | string | Display name in HomeKit |
 | `type` | string | `radio`, `spotify`, `amazon`, `deezer`, `nas` |
-| `url` | string | HTTP Stream URL (nur für `radio`) - HTTPS wird automatisch zu HTTP konvertiert |
-| `spotifyUri` | string | Spotify URI (nur für `spotify`) |
-| `contentId` | string | Content ID (für `amazon`, `deezer`) |
-| `sourceAccount` | string | Account ID (für `spotify`, `amazon`, `deezer`) |
-| `nasLocation` | string | DLNA Object-ID (nur für `nas`) |
-| `nasServer` | string | Server-ID + "/0" (nur für `nas`) |
+| `url` | string | HTTP stream URL (for `radio` only) - HTTPS auto-converted to HTTP |
+| `spotifyUri` | string | Spotify URI (for `spotify` only) |
+| `contentId` | string | Content ID (for `amazon`, `deezer`) |
+| `sourceAccount` | string | Account ID (for `spotify`, `amazon`, `deezer`) |
+| `nasLocation` | string | DLNA Object-ID (for `nas` only) |
+| `nasServer` | string | Server-ID + "/0" (for `nas` only) |
 
-**Hinweis:** `tunein` wird nicht mehr unterstützt (Bose Cloud abgeschaltet). Nutze stattdessen `radio` mit der direkten HTTP-Stream-URL des Senders.
+**Note:** `tunein` is no longer supported (Bose Cloud shut down). Use `radio` with the direct HTTP stream URL instead.
 
-## Wie es technisch funktioniert
+## How It Works
 
-### Radio & NAS (nach Cloud-Shutdown)
+### Radio & NAS (Post Cloud Shutdown)
 
-Die Bose-Firmware hat nach dem Cloud-Shutdown die Source-Typen `LOCAL_INTERNET_RADIO`, `INTERNET_RADIO` und `STORED_MUSIC` deaktiviert. Das Plugin nutzt stattdessen **DLNA/UPnP auf Port 8091** (`SetAVTransportURI`), um Audio-URLs direkt an die Box zu senden.
+The Bose firmware disabled `LOCAL_INTERNET_RADIO`, `INTERNET_RADIO` and `STORED_MUSIC` source types after the cloud shutdown. This plugin uses **DLNA/UPnP on port 8091** (`SetAVTransportURI`) to send audio URLs directly to the speaker. Track/station names are displayed on the speaker via DIDL-Lite metadata.
 
-### Hardware-Buttons
+### Hardware Buttons
 
-Die physischen Preset-Tasten 1-6 senden über den WebSocket ein `nowSelectionUpdated`-Event mit der Preset-ID. Das Plugin fängt dieses Event ab und spielt den konfigurierten Content per DLNA ab.
+Physical preset buttons 1-6 send a `nowSelectionUpdated` WebSocket event with the preset ID. The plugin catches this event, waits for the device to finish internal processing, then plays the configured content via DLNA.
 
-### IP-Management
+### NAS Album Playback
 
-Beim Start scannt das Plugin per mDNS alle SoundTouch-Geräte im Netzwerk und matcht sie per MAC-Adresse (`deviceID`) mit der Config. Geänderte IPs werden automatisch in die `config.json` zurückgeschrieben.
+All tracks from an album/folder are loaded from MiniDLNA via UPnP Browse. The plugin plays them sequentially - when a track ends (`STOP_STATE` via WebSocket), the next track starts automatically.
 
-## HomeKit-Funktionen
+### IP Management
+
+At startup, the plugin scans for all SoundTouch devices via mDNS and matches them by MAC address (`deviceID`). Changed IPs are automatically written back to `config.json`.
+
+## HomeKit Features
 
 ### Television Service
-- **Ein/Aus** - Power On/Off
-- **Input Selection** - Konfigurierte Presets, AUX, Bluetooth
-- **Remote Control** - Play/Pause, Vor/Zurück, Lautstärke
+- **On/Off** - Power On/Off
+- **Input Selection** - Configured presets, AUX, Bluetooth
+- **Remote Control** - Play/Pause, Next/Previous, Volume
 
 ### Input Sources
-- **Preset 1-6** - Nur konfigurierte Presets werden angezeigt, leere Slots sind ausgeblendet
-- **AUX** - AUX-Eingang
-- **Bluetooth** - Bluetooth-Quelle
+- **Preset 1-6** - Only configured presets are shown, empty slots are hidden
+- **AUX** - AUX input
+- **Bluetooth** - Bluetooth source
 
-### Lautstärkesteuerung
-Jedes Gerät hat einen "Lautstärke"-Service (als Lampe mit Helligkeitsregler):
-- **Helligkeit** = Lautstärke (0-100%)
-- **Ein/Aus** = Mute
+### Volume Control
+Each device has a "Volume" service (as a light with brightness slider):
+- **Brightness** = Volume (0-100%)
+- **On/Off** = Mute
 
-## Unterstützte Geräte
+## Supported Devices
 
 - SoundTouch 10
 - SoundTouch 20 / 20 Series III
@@ -201,44 +214,44 @@ Jedes Gerät hat einen "Lautstärke"-Service (als Lampe mit Helligkeitsregler):
 - SoundTouch SA-5 Amplifier
 - Wave SoundTouch
 
-**Hinweis:** Neuere Bose-Geräte (Home Speaker 500, 700, Soundbar 550 etc.) verwenden eine andere API und werden nicht unterstützt.
+**Note:** Newer Bose devices (Home Speaker 500, 700, Soundbar 550 etc.) use a different API and are not supported.
 
 ## Troubleshooting
 
-### Geräte erscheinen nicht in "Gerät hinzufügen"
+### Devices Don't Appear in "Add Accessory"
 
-mDNS funktioniert nicht korrekt. Häufige Ursachen:
-1. **Docker mit `--network host`**: Andere Container (z.B. Matter Server) blockieren Port 5353. Lösung: Homebridge auf `macvlan` mit eigener IP umstellen.
-2. **Mehrere mDNS-Stacks**: Nur ein mDNS-Dienst sollte aktiv sein. Prüfe mit `ss -ulnp | grep 5353`.
-3. **Falsches Netzwerk-Interface**: In den Homebridge-Einstellungen das korrekte Interface (z.B. `eth0`) auswählen.
+mDNS is not working correctly. Common causes:
+1. **Docker with `--network host`**: Other containers (e.g. Matter Server) block port 5353. Solution: Switch Homebridge to `macvlan` with its own IP.
+2. **Multiple mDNS stacks**: Only one mDNS service should be active. Check with `ss -ulnp | grep 5353`.
+3. **Wrong network interface**: Select the correct interface (e.g. `eth0`) in Homebridge settings.
 
-### Radio spielt nicht
+### Radio Doesn't Play
 
-- Die Stream-URL muss **HTTP** sein, nicht HTTPS (wird automatisch konvertiert)
-- Teste die URL direkt: `curl -I http://deine-stream-url.mp3`
-- Prüfe die Logs auf "DLNA error"
+- Stream URL must be **HTTP**, not HTTPS (auto-converted)
+- Test the URL directly: `curl -I http://your-stream-url.mp3`
+- Check logs for "DLNA error"
 
-### NAS/DLNA funktioniert nicht
+### NAS/DLNA Doesn't Work
 
-- MiniDLNA muss laufen: `curl http://NAS-IP:8200`
-- Die ObjectID muss aktuell sein - nutze den NAS-Browser in der Plugin-UI
+- MiniDLNA must be running: `curl http://NAS-IP:8200`
+- The ObjectID must be current - use the NAS browser in the plugin UI
 
-### Hardware-Buttons reagieren nicht
+### Hardware Buttons Don't Respond
 
-- Das Plugin muss laufen und per WebSocket verbunden sein
-- Prüfe im Log: `hardware button X pressed`
-- Der Preset muss in den Homebridge-Einstellungen konfiguriert sein
+- The plugin must be running and connected via WebSocket
+- Check log for: `hardware button X pressed`
+- The preset must be configured in Homebridge settings
 
 ## Changelog
 
-Siehe [CHANGELOG.md](CHANGELOG.md) für alle Änderungen.
+See [CHANGELOG.md](CHANGELOG.md) for all changes.
 
-## Lizenz
+## License
 
 MIT
 
 ## Credits
 
 - [Bose SoundTouch Web API](https://assets.bosecreative.com/m/496577402d128874/original/SoundTouch-Web-API.pdf)
-- [bosesoundtouchapi](https://github.com/thlucas1/bosesoundtouchapi) - DLNA PlayUrl Methode
-- [homebridge-lgwebos-tv](https://github.com/grzegorz914/homebridge-lgwebos-tv) - Inspiration für External Accessories
+- [bosesoundtouchapi](https://github.com/thlucas1/bosesoundtouchapi) - DLNA PlayUrl method
+- [homebridge-lgwebos-tv](https://github.com/grzegorz914/homebridge-lgwebos-tv) - Inspiration for External Accessories
