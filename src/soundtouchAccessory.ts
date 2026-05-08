@@ -4,7 +4,7 @@ import {
   CharacteristicValue,
 } from 'homebridge';
 import { SoundTouchPlatform, DeviceConfig, PresetConfig } from './platform';
-import { SoundTouchClient, DeviceInfo, Preset } from './soundtouchClient';
+import { SoundTouchClient, DeviceInfo } from './soundtouchClient';
 import { SoundTouchWebSocket, VolumeUpdate, NowPlayingUpdate } from './soundtouchWebSocket';
 
 export class SoundTouchAccessory {
@@ -25,7 +25,6 @@ export class SoundTouchAccessory {
   private currentMute = false;
   private isPoweredOn = false;
   private currentInputIndex = 0;
-  private devicePresets: Preset[] = [];
 
   constructor(
     private readonly platform: SoundTouchPlatform,
@@ -488,8 +487,7 @@ export class SoundTouchAccessory {
       // Get initial state
       await this.refreshState();
 
-      // Get device presets and update input source names
-      this.devicePresets = await this.client.getPresets();
+      // Update input source names from config
       this.updateInputSourceNames();
 
       // Connect WebSocket for real-time updates
@@ -505,16 +503,13 @@ export class SoundTouchAccessory {
   }
 
   private updateInputSourceNames(): void {
-    // Update preset names based on device presets and config
+    // Update preset names based on config only - ignore old device presets
     for (let i = 1; i <= 6; i++) {
-      const devicePreset = this.devicePresets.find(p => p.id === i);
       const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
 
       let presetName: string;
-      if (configPreset) {
+      if (configPreset && configPreset.name) {
         presetName = configPreset.name;
-      } else if (devicePreset?.contentItem.name) {
-        presetName = devicePreset.contentItem.name;
       } else {
         presetName = `Preset ${i}`;
       }
