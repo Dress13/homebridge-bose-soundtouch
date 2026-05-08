@@ -408,7 +408,7 @@ export class SoundTouchAccessory {
     switch (config.type) {
       case 'radio':
         if (config.url) {
-          await this.client.playUrl(config.url);
+          await this.client.playUrl(config.url, config.name);
         }
         break;
 
@@ -461,7 +461,9 @@ export class SoundTouchAccessory {
 
       case 'nas':
         if (config.nasLocation && config.nasServer) {
-          await this.client.playStoredMusic(config.nasLocation, config.nasServer);
+          await this.client.playStoredMusic(
+            config.nasLocation, config.nasServer, undefined, config.name,
+          );
         }
         break;
 
