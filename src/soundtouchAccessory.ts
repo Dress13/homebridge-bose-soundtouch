@@ -260,7 +260,8 @@ export class SoundTouchAccessory {
     // Names will be updated later when device presets are loaded
     for (let i = 1; i <= 6; i++) {
       const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
-      const presetName = configPreset?.name || `Preset ${i}`;
+      const hasPreset = configPreset && configPreset.name;
+      const presetName = hasPreset ? configPreset.name : `Preset ${i}`;
 
       const inputService = this.accessory.addService(
         this.platform.Service.InputSource,
@@ -272,11 +273,16 @@ export class SoundTouchAccessory {
         .setCharacteristic(this.platform.Characteristic.Identifier, i)
         .setCharacteristic(this.platform.Characteristic.ConfiguredName, presetName)
         .setCharacteristic(this.platform.Characteristic.Name, presetName)
-        .setCharacteristic(this.platform.Characteristic.IsConfigured, this.platform.Characteristic.IsConfigured.CONFIGURED)
+        .setCharacteristic(this.platform.Characteristic.IsConfigured,
+          hasPreset
+            ? this.platform.Characteristic.IsConfigured.CONFIGURED
+            : this.platform.Characteristic.IsConfigured.NOT_CONFIGURED)
         .setCharacteristic(this.platform.Characteristic.InputSourceType, this.platform.Characteristic.InputSourceType.APPLICATION)
         .setCharacteristic(this.platform.Characteristic.InputDeviceType, this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM)
         .setCharacteristic(this.platform.Characteristic.CurrentVisibilityState,
-          this.platform.Characteristic.CurrentVisibilityState.SHOWN);
+          hasPreset
+            ? this.platform.Characteristic.CurrentVisibilityState.SHOWN
+            : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
 
       this.televisionService.addLinkedService(inputService);
       this.inputServices.push(inputService);
@@ -325,12 +331,13 @@ export class SoundTouchAccessory {
       if (index >= 1 && index <= 6) {
         // Preset 1-6
         const configPreset = this.deviceConfig.presets?.find(p => p.slot === index);
-        if (configPreset) {
+        if (configPreset && configPreset.name) {
           await this.playConfiguredPreset(configPreset);
+          this.platform.log.info(`${this.accessory.displayName} selected Preset ${index}: ${configPreset.name}`);
         } else {
-          await this.client.selectPreset(index);
+          this.platform.log.info(`${this.accessory.displayName} Preset ${index} is not configured`);
+          return;
         }
-        this.platform.log.info(`${this.accessory.displayName} selected Preset ${index}`);
       } else if (index === 7) {
         // AUX
         await this.client.selectAux();
