@@ -478,7 +478,7 @@ export class SoundTouchClient {
   async playUrl(jsonDescriptorUrl: string, name = 'Internet Radio'): Promise<void> {
     // Use LOCAL_INTERNET_RADIO with a JSON descriptor URL
     // The JSON descriptor is served by our local radio server
-    const xml = `<ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" ` +
+    const xml = '<ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" ' +
       `location="${jsonDescriptorUrl}" sourceAccount="" isPresetable="false">` +
       `<itemName>${name}</itemName></ContentItem>`;
     await this.post('/select', xml);
