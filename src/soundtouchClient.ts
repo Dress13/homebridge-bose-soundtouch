@@ -476,25 +476,16 @@ export class SoundTouchClient {
   }
 
   async playUrl(url: string, name = 'Internet Radio'): Promise<void> {
-    // Use LOCAL_INTERNET_RADIO source with Bose API wrapper
-    // This is the same method the official SoundTouch app uses for custom radio URLs
-    const stationData = {
-      name: name,
-      imageUrl: '',
-      streamUrl: url,
-    };
-    const base64Data = Buffer.from(JSON.stringify(stationData)).toString('base64');
-    const location = `https://content.api.bose.io/core02/svc-bmx-adapter-orion/prod/orion/station?data=${base64Data}`;
-
+    // Play HTTP stream directly without Bose cloud (cloud is discontinued)
     const builder = new Builder({ headless: true });
     const xml = builder.buildObject({
       ContentItem: {
         $: {
-          source: 'LOCAL_INTERNET_RADIO',
+          source: 'HTTP_RADIO',
           type: 'stationurl',
-          location: location,
+          location: url,
           sourceAccount: '',
-          isPresetable: 'true',
+          isPresetable: 'false',
         },
         itemName: name,
       },
