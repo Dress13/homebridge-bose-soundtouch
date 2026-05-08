@@ -475,13 +475,52 @@ export class SoundTouchClient {
     await this.selectSource('BLUETOOTH');
   }
 
-  async playUrl(jsonDescriptorUrl: string, name = 'Internet Radio'): Promise<void> {
-    // Use LOCAL_INTERNET_RADIO with a JSON descriptor URL
-    // The JSON descriptor is served by our local radio server
-    const xml = '<ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" ' +
-      `location="${jsonDescriptorUrl}" sourceAccount="" isPresetable="false">` +
-      `<itemName>${name}</itemName></ContentItem>`;
-    await this.post('/select', xml);
+  async playUrl(url: string, _name = 'Internet Radio'): Promise<void> {
+    // Play HTTP stream via DLNA SetAVTransportURI on port 8091
+    // This works after the Bose cloud shutdown (LOCAL_INTERNET_RADIO removed)
+    const trimmedUrl = url.trim();
+    const soap = '<?xml version="1.0" encoding="utf-8"?>' +
+      '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
+      's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+      '<s:Body>' +
+      '<u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">' +
+      '<InstanceID>0</InstanceID>' +
+      `<CurrentURI>${trimmedUrl}</CurrentURI>` +
+      '<CurrentURIMetaData></CurrentURIMetaData>' +
+      '</u:SetAVTransportURI>' +
+      '</s:Body></s:Envelope>';
+
+    return new Promise((resolve, reject) => {
+      const options: http.RequestOptions = {
+        hostname: this.host,
+        port: 8091,
+        path: '/AVTransport/Control',
+        method: 'POST',
+        timeout: this.timeout,
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8',
+          'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"',
+          'Content-Length': Buffer.byteLength(soap),
+        },
+      };
+
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`DLNA error ${res.statusCode}: ${data}`));
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('DLNA timeout')); });
+      req.write(soap);
+      req.end();
+    });
   }
 
   async playSpotify(spotifyUri: string, sourceAccount: string): Promise<void> {
