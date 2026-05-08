@@ -322,7 +322,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     // Local HTTP server that serves JSON descriptors for radio streams
     // Bose SoundTouch LOCAL_INTERNET_RADIO requires a JSON URL, not a direct stream
     this.radioServer = http.createServer((req, res) => {
-      const url = new URL(req.url || '', `http://localhost`);
+      const url = new URL(req.url || '', 'http://localhost');
       const streamUrl = url.searchParams.get('url');
       const name = url.searchParams.get('name') || 'Internet Radio';
 
