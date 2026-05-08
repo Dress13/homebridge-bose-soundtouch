@@ -454,13 +454,7 @@ export class SoundTouchAccessory {
 
       case 'nas':
         if (config.nasLocation && config.nasServer) {
-          await this.client.playStoredMusic(config.nasLocation, config.nasServer, config.name);
-          await this.client.storePreset(config.slot, {
-            source: 'STORED_MUSIC',
-            location: config.nasLocation,
-            sourceAccount: config.nasServer,
-            name: config.name,
-          });
+          await this.client.playStoredMusic(config.nasLocation, config.nasServer);
         }
         break;
 
