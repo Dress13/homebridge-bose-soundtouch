@@ -401,8 +401,9 @@ export class SoundTouchAccessory {
     switch (config.type) {
       case 'radio':
         if (config.url) {
-          // Play the HTTP stream directly - Bose API doesn't support storing HTTP URLs as presets
-          await this.client.playUrl(config.url, config.name);
+          const radioUrl = this.platform.getRadioServerUrl(config.url, config.name);
+          this.platform.log.debug(`Radio descriptor URL: ${radioUrl}`);
+          await this.client.playUrl(radioUrl, config.name);
         }
         break;
 

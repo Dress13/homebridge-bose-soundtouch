@@ -475,12 +475,12 @@ export class SoundTouchClient {
     await this.selectSource('BLUETOOTH');
   }
 
-  async playUrl(url: string, name = 'Internet Radio'): Promise<void> {
-    // Play HTTP stream directly without Bose cloud (cloud is discontinued)
-    const trimmedUrl = url.trim();
-    // SoundTouch devices may not support HTTPS - try HTTP fallback
-    const httpUrl = trimmedUrl.replace(/^https:\/\//, 'http://');
-    const xml = `<ContentItem source="INTERNET_RADIO" location="${httpUrl}"><itemName>${name}</itemName></ContentItem>`;
+  async playUrl(jsonDescriptorUrl: string, name = 'Internet Radio'): Promise<void> {
+    // Use LOCAL_INTERNET_RADIO with a JSON descriptor URL
+    // The JSON descriptor is served by our local radio server
+    const xml = `<ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" ` +
+      `location="${jsonDescriptorUrl}" sourceAccount="" isPresetable="false">` +
+      `<itemName>${name}</itemName></ContentItem>`;
     await this.post('/select', xml);
   }
 
