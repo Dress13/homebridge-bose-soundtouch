@@ -5,7 +5,9 @@ import {
 } from 'homebridge';
 import { SoundTouchPlatform, DeviceConfig, PresetConfig } from './platform';
 import { SoundTouchClient, DeviceInfo } from './soundtouchClient';
-import { SoundTouchWebSocket, VolumeUpdate, NowPlayingUpdate } from './soundtouchWebSocket';
+import {
+  SoundTouchWebSocket, VolumeUpdate, NowPlayingUpdate, PresetSelectionUpdate,
+} from './soundtouchWebSocket';
 
 export class SoundTouchAccessory {
   private readonly client: SoundTouchClient;
@@ -538,6 +540,16 @@ export class SoundTouchAccessory {
       this.platform.log.debug(`${this.accessory.displayName} Source: ${data.source}, Playing: ${data.playStatus}`);
     });
 
+    this.webSocket.on('nowSelectionUpdated', (data: PresetSelectionUpdate) => {
+      // Hardware preset button was pressed - play via DLNA
+      if (data.presetId >= 1 && data.presetId <= 6) {
+        this.platform.log.info(
+          `${this.accessory.displayName} hardware button ${data.presetId} pressed`,
+        );
+        this.handleHardwarePreset(data.presetId);
+      }
+    });
+
     this.webSocket.on('connected', () => {
       this.platform.log.info(`WebSocket connected for ${this.accessory.displayName}`);
       // Refresh state on (re)connect so HomeKit gets the current status
@@ -575,6 +587,35 @@ export class SoundTouchAccessory {
       this.platform.Characteristic.On,
       !this.currentMute && this.currentVolume > 0,
     );
+  }
+
+  private async handleHardwarePreset(presetId: number): Promise<void> {
+    const configPreset = this.deviceConfig.presets?.find(p => p.slot === presetId);
+    if (!configPreset || !configPreset.name) {
+      this.platform.log.debug(
+        `${this.accessory.displayName} preset ${presetId} not configured, ignoring`,
+      );
+      return;
+    }
+
+    try {
+      await this.playConfiguredPreset(configPreset);
+      this.platform.log.info(
+        `${this.accessory.displayName} playing preset ${presetId}: ${configPreset.name}`,
+      );
+      // Update HomeKit state
+      this.isPoweredOn = true;
+      this.updatePowerState();
+      this.currentInputIndex = presetId;
+      this.televisionService.updateCharacteristic(
+        this.platform.Characteristic.ActiveIdentifier,
+        presetId,
+      );
+    } catch (error) {
+      this.platform.log.error(
+        `${this.accessory.displayName} failed to play preset ${presetId}:`, error,
+      );
+    }
   }
 
   private async refreshState(): Promise<void> {

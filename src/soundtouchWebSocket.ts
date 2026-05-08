@@ -2,9 +2,17 @@ import WebSocket from 'ws';
 import { parseStringPromise } from 'xml2js';
 import { EventEmitter } from 'events';
 
+export interface PresetSelectionUpdate {
+  presetId: number;
+  source?: string;
+  location?: string;
+  name?: string;
+}
+
 export interface WebSocketEvents {
   'volumeUpdated': (data: VolumeUpdate) => void;
   'nowPlayingUpdated': (data: NowPlayingUpdate) => void;
+  'nowSelectionUpdated': (data: PresetSelectionUpdate) => void;
   'presetUpdated': (data: PresetUpdate) => void;
   'zoneUpdated': (data: ZoneUpdate) => void;
   'bassUpdated': (data: BassUpdate) => void;
@@ -198,6 +206,19 @@ export class SoundTouchWebSocket extends EventEmitter {
             shuffleSetting: np.shuffleSetting,
             repeatSetting: np.repeatSetting,
           } as NowPlayingUpdate);
+        }
+
+        if (updates.nowSelectionUpdated) {
+          const sel = updates.nowSelectionUpdated;
+          if (sel.preset) {
+            const preset = sel.preset;
+            this.emit('nowSelectionUpdated', {
+              presetId: parseInt(preset.$.id, 10),
+              source: preset.ContentItem?.$.source,
+              location: preset.ContentItem?.$.location,
+              name: preset.ContentItem?.itemName,
+            } as PresetSelectionUpdate);
+          }
         }
 
         if (updates.presetsUpdated) {
