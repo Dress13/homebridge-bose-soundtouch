@@ -613,12 +613,15 @@ export class SoundTouchAccessory {
     const configPreset = this.deviceConfig.presets?.find(p => p.slot === presetId);
     if (!configPreset || !configPreset.name) {
       this.platform.log.debug(
-        `${this.accessory.displayName} preset ${presetId} not configured, ignoring`,
+        `${this.accessory.displayName} preset ${presetId} not configured`,
       );
       return;
     }
 
     try {
+      // Wait for the device to finish processing the button press internally
+      // before sending our DLNA command (otherwise the device cancels it)
+      await new Promise(r => setTimeout(r, 1500));
       await this.playConfiguredPreset(configPreset);
       this.platform.log.info(
         `${this.accessory.displayName} playing preset ${presetId}: ${configPreset.name}`,
