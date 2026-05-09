@@ -256,34 +256,32 @@ export class SoundTouchAccessory {
   private setupInputSources(): void {
     this.inputServices = [];
 
-    // Add Presets 1-6 as Input Sources (Identifier 1-6)
-    // Use config preset names if available, otherwise use default names
-    // Names will be updated later when device presets are loaded
+    // Only create Input Sources for configured presets (Identifier 1-6)
+    // Unconfigured slots are not created at all
     for (let i = 1; i <= 6; i++) {
       const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
-      const hasPreset = configPreset && configPreset.name;
-      const presetName = hasPreset ? configPreset.name : `Preset ${i}`;
+      if (!configPreset || !configPreset.name) {
+        continue;
+      }
 
       const inputService = this.accessory.addService(
         this.platform.Service.InputSource,
-        presetName,
+        configPreset.name,
         `preset-${i}`,
       );
 
       inputService
         .setCharacteristic(this.platform.Characteristic.Identifier, i)
-        .setCharacteristic(this.platform.Characteristic.ConfiguredName, presetName)
-        .setCharacteristic(this.platform.Characteristic.Name, presetName)
+        .setCharacteristic(this.platform.Characteristic.ConfiguredName, configPreset.name)
+        .setCharacteristic(this.platform.Characteristic.Name, configPreset.name)
         .setCharacteristic(this.platform.Characteristic.IsConfigured,
-          hasPreset
-            ? this.platform.Characteristic.IsConfigured.CONFIGURED
-            : this.platform.Characteristic.IsConfigured.NOT_CONFIGURED)
-        .setCharacteristic(this.platform.Characteristic.InputSourceType, this.platform.Characteristic.InputSourceType.APPLICATION)
-        .setCharacteristic(this.platform.Characteristic.InputDeviceType, this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM)
+          this.platform.Characteristic.IsConfigured.CONFIGURED)
+        .setCharacteristic(this.platform.Characteristic.InputSourceType,
+          this.platform.Characteristic.InputSourceType.APPLICATION)
+        .setCharacteristic(this.platform.Characteristic.InputDeviceType,
+          this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM)
         .setCharacteristic(this.platform.Characteristic.CurrentVisibilityState,
-          hasPreset
-            ? this.platform.Characteristic.CurrentVisibilityState.SHOWN
-            : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
+          this.platform.Characteristic.CurrentVisibilityState.SHOWN);
 
       this.televisionService.addLinkedService(inputService);
       this.inputServices.push(inputService);
