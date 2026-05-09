@@ -59,6 +59,8 @@ This plugin uses **External Accessories**:
 7. **Assign room**
 8. **Repeat** for each device
 
+**Important:** The Child Bridge itself does **not** need to be added to HomeKit. Only add the individual speaker accessories.
+
 **Important:** Devices only appear if mDNS works correctly. With Docker, the container must use either `--network host` or `macvlan`. If other mDNS services (e.g. Matter Server) conflict on port 5353, use `macvlan` with a dedicated IP.
 
 ## Configuration
