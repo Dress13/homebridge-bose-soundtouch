@@ -394,6 +394,16 @@ export class SoundTouchAccessory {
       .setCharacteristic(this.platform.Characteristic.CurrentVisibilityState,
         this.platform.Characteristic.CurrentVisibilityState.SHOWN);
 
+    // Protect ConfiguredName from being overwritten by HomeKit setup wizard
+    inputService.getCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .onGet(() => name)
+      .onSet(() => {
+        // Ignore HomeKit's attempt to rename - always keep our name
+        inputService.updateCharacteristic(
+          this.platform.Characteristic.ConfiguredName, name,
+        );
+      });
+
     this.televisionService.addLinkedService(inputService);
     this.inputServices.push(inputService);
   }
