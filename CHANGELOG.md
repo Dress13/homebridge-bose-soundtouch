@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.14.6
+- **Input source ordering** - Presets are displayed in slot order (1-6), then AUX, then Bluetooth. No more alphabetical sorting by HomeKit. Sequential identifiers ensure correct order.
+- **Eingabequellen-Reihenfolge** - Presets werden in Tasten-Reihenfolge (1-6) angezeigt, dann AUX, dann Bluetooth. Keine alphabetische Sortierung mehr.
+
+## v1.14.5
+- **Multi-Room state on startup** - Group switch state is refreshed on WebSocket connect/reconnect, so existing zones are correctly shown after plugin restart
+
 ## v1.14.3
 - **Service labels** - Volume slider shows as "Lautstärke" and group switch as "Multi-Room" in HomeKit via ConfiguredName characteristic
 

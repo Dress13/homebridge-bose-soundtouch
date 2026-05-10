@@ -30,6 +30,8 @@ export class SoundTouchAccessory {
   private isGrouped = false;
   private currentInputIndex = 0;
   private currentPlayStatus = '';
+  // Maps sequential HomeKit Identifier → internal action type + slot
+  private inputMap: Array<{ type: 'preset' | 'aux' | 'bluetooth'; slot: number }> = [];
 
   constructor(
     private readonly platform: SoundTouchPlatform,
@@ -263,77 +265,60 @@ export class SoundTouchAccessory {
 
   private setupInputSources(): void {
     this.inputServices = [];
+    this.inputMap = [];
+    let identifier = 1;
 
-    // Only create Input Sources for configured presets (Identifier 1-6)
-    // Unconfigured slots are not created at all
+    // Add configured presets in slot order (1-6)
     for (let i = 1; i <= 6; i++) {
       const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
       if (!configPreset || !configPreset.name) {
         continue;
       }
 
-      const inputService = this.accessory.addService(
-        this.platform.Service.InputSource,
-        configPreset.name,
-        `preset-${i}`,
-      );
-
-      inputService
-        .setCharacteristic(this.platform.Characteristic.Identifier, i)
-        .setCharacteristic(this.platform.Characteristic.ConfiguredName, configPreset.name)
-        .setCharacteristic(this.platform.Characteristic.Name, configPreset.name)
-        .setCharacteristic(this.platform.Characteristic.IsConfigured,
-          this.platform.Characteristic.IsConfigured.CONFIGURED)
-        .setCharacteristic(this.platform.Characteristic.InputSourceType,
-          this.platform.Characteristic.InputSourceType.APPLICATION)
-        .setCharacteristic(this.platform.Characteristic.InputDeviceType,
-          this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM)
-        .setCharacteristic(this.platform.Characteristic.CurrentVisibilityState,
-          this.platform.Characteristic.CurrentVisibilityState.SHOWN);
-
-      this.televisionService.addLinkedService(inputService);
-      this.inputServices.push(inputService);
+      this.addInputSource(configPreset.name, `preset-${i}`, identifier, 'APPLICATION');
+      this.inputMap.push({ type: 'preset', slot: i });
+      identifier++;
     }
 
-    // Add AUX input (Identifier 7)
-    const auxService = this.accessory.addService(
-      this.platform.Service.InputSource,
-      'AUX Eingang',
-      'aux',
-    );
-    auxService
-      .setCharacteristic(this.platform.Characteristic.Identifier, 7)
-      .setCharacteristic(this.platform.Characteristic.ConfiguredName, 'AUX Eingang')
-      .setCharacteristic(this.platform.Characteristic.Name, 'AUX Eingang')
-      .setCharacteristic(this.platform.Characteristic.IsConfigured,
-        this.platform.Characteristic.IsConfigured.CONFIGURED)
-      .setCharacteristic(this.platform.Characteristic.InputSourceType,
-        this.platform.Characteristic.InputSourceType.OTHER)
-      .setCharacteristic(this.platform.Characteristic.InputDeviceType,
-        this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM);
-    this.televisionService.addLinkedService(auxService);
-    this.inputServices.push(auxService);
+    // Add AUX (always after presets)
+    this.addInputSource('AUX Eingang', 'aux', identifier, 'OTHER');
+    this.inputMap.push({ type: 'aux', slot: 0 });
+    identifier++;
 
-    // Add Bluetooth input (Identifier 8)
-    const btService = this.accessory.addService(
-      this.platform.Service.InputSource,
-      'Bluetooth',
-      'bluetooth',
-    );
-    btService
-      .setCharacteristic(this.platform.Characteristic.Identifier, 8)
-      .setCharacteristic(this.platform.Characteristic.ConfiguredName, 'Bluetooth')
-      .setCharacteristic(this.platform.Characteristic.Name, 'Bluetooth')
-      .setCharacteristic(this.platform.Characteristic.IsConfigured,
-        this.platform.Characteristic.IsConfigured.CONFIGURED)
-      .setCharacteristic(this.platform.Characteristic.InputSourceType,
-        this.platform.Characteristic.InputSourceType.OTHER)
-      .setCharacteristic(this.platform.Characteristic.InputDeviceType,
-        this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM);
-    this.televisionService.addLinkedService(btService);
-    this.inputServices.push(btService);
+    // Add Bluetooth (always last)
+    this.addInputSource('Bluetooth', 'bluetooth', identifier, 'OTHER');
+    this.inputMap.push({ type: 'bluetooth', slot: 0 });
 
     this.platform.log.info(`Setup ${this.inputServices.length} input sources for ${this.accessory.displayName}`);
+  }
+
+  private addInputSource(
+    name: string, subtype: string, identifier: number, sourceType: string,
+  ): void {
+    const inputService = this.accessory.addService(
+      this.platform.Service.InputSource,
+      name,
+      subtype,
+    );
+
+    const inputSourceType = sourceType === 'APPLICATION'
+      ? this.platform.Characteristic.InputSourceType.APPLICATION
+      : this.platform.Characteristic.InputSourceType.OTHER;
+
+    inputService
+      .setCharacteristic(this.platform.Characteristic.Identifier, identifier)
+      .setCharacteristic(this.platform.Characteristic.ConfiguredName, name)
+      .setCharacteristic(this.platform.Characteristic.Name, name)
+      .setCharacteristic(this.platform.Characteristic.IsConfigured,
+        this.platform.Characteristic.IsConfigured.CONFIGURED)
+      .setCharacteristic(this.platform.Characteristic.InputSourceType, inputSourceType)
+      .setCharacteristic(this.platform.Characteristic.InputDeviceType,
+        this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM)
+      .setCharacteristic(this.platform.Characteristic.CurrentVisibilityState,
+        this.platform.Characteristic.CurrentVisibilityState.SHOWN);
+
+    this.televisionService.addLinkedService(inputService);
+    this.inputServices.push(inputService);
   }
 
   private setupGroupSwitch(): void {
@@ -434,28 +419,39 @@ export class SoundTouchAccessory {
     const index = value as number;
     this.currentInputIndex = index;
 
+    // Resolve sequential HomeKit identifier to internal action
+    const mapping = this.inputMap[index - 1];
+    if (!mapping) {
+      this.platform.log.debug(`${this.accessory.displayName} unknown input ${index}`);
+      return;
+    }
+
     try {
-      if (index >= 1 && index <= 6) {
-        // Preset 1-6
-        const configPreset = this.deviceConfig.presets?.find(p => p.slot === index);
-        if (configPreset && configPreset.name) {
-          await this.playConfiguredPreset(configPreset);
-          this.platform.log.info(`${this.accessory.displayName} selected Preset ${index}: ${configPreset.name}`);
-        } else {
-          this.platform.log.info(`${this.accessory.displayName} Preset ${index} is not configured`);
-          return;
+      switch (mapping.type) {
+        case 'preset': {
+          const configPreset = this.deviceConfig.presets?.find(
+            p => p.slot === mapping.slot,
+          );
+          if (configPreset && configPreset.name) {
+            await this.playConfiguredPreset(configPreset);
+            this.platform.log.info(
+              `${this.accessory.displayName} selected Preset ${mapping.slot}: ${configPreset.name}`,
+            );
+          }
+          break;
         }
-      } else if (index === 7) {
-        // AUX
-        await this.client.selectAux();
-        this.platform.log.info(`${this.accessory.displayName} selected AUX`);
-      } else if (index === 8) {
-        // Bluetooth
-        await this.client.selectBluetooth();
-        this.platform.log.info(`${this.accessory.displayName} selected Bluetooth`);
+        case 'aux':
+          await this.client.selectAux();
+          this.platform.log.info(`${this.accessory.displayName} selected AUX`);
+          break;
+        case 'bluetooth':
+          await this.client.selectBluetooth();
+          this.platform.log.info(
+            `${this.accessory.displayName} selected Bluetooth`,
+          );
+          break;
       }
 
-      // Power on if not already on
       if (!this.isPoweredOn) {
         this.isPoweredOn = true;
         this.updatePowerState();
