@@ -1,58 +1,54 @@
 # Changelog
 
-## v1.14.0
-- **Multi-Room Gruppieren** - Jede Box bekommt einen "Gruppieren"-Schalter in HomeKit. Einschalten fügt die Box zur Gruppe des gerade spielenden Masters hinzu, Ausschalten entfernt sie. Steuerbar per Siri: "Hey Siri, schalte Gruppieren Küche ein"
+## v1.14.3
+- **Service labels** - Volume slider shows as "Lautstärke" and group switch as "Multi-Room" in HomeKit via ConfiguredName characteristic
+
+## v1.14.2
+- **Multi-Room renamed** - Group switch renamed from "Gruppieren" to "Multi-Room" to match Bose terminology
+- **AUX/Bluetooth labels** - AUX renamed to "AUX Eingang" for clearer identification in HomeKit
+
+## v1.14.0 - v1.14.1
+- **Multi-Room grouping** - Each speaker gets a "Multi-Room" switch in HomeKit. Turn it on to add the speaker to the zone of the currently playing master. Turn it off to remove it. Master is auto-detected. Siri: "Hey Siri, turn on Multi-Room Kitchen"
+- **Zone sync** - WebSocket `zoneUpdated` events keep the group switch state in sync
 
 ## v1.13.10
-- **Nur konfigurierte Presets** - InputSources werden nur noch für tatsächlich konfigurierte Presets erstellt. Alte Box-Presets erscheinen nicht mehr in HomeKit.
+- **Only configured presets** - InputSources are only created for presets configured in settings. Old device-stored presets no longer appear in HomeKit
 
-## v1.13.9
-- **Child Bridge Hinweis** - README erklärt warum die Child Bridge nicht zu HomeKit hinzugefügt werden darf
+## v1.13.8 - v1.13.9
+- **Child Bridge note** - README explains that the Child Bridge must not be added to HomeKit, only individual speaker accessories
 
-## v1.13.8
-- **Child Bridge Hinweis** - Hinweis in README dass nur die einzelnen Speaker-Accessories hinzugefügt werden
+## v1.13.5 - v1.13.6
+- **Track names on display** - DIDL-Lite metadata sends station/track names to the Bose display
+- **English + German README** - README.md in English, README.de.md in German
 
-## v1.13.6
-- **English + German README** - README.md in English, README.de.md auf Deutsch
+## v1.13.3 - v1.13.4
+- **Preset switching fix** - NAS playlist is cleared when switching to radio, preventing auto-next-track from overriding
+- **Hardware button timing** - 1.5s delay after button press before DLNA command, so first press works reliably
 
-## v1.13.5
-- **Track-/Sendername auf dem Box-Display** - DIDL-Lite Metadaten werden mitgesendet, sodass der Bose-Display den Namen des Senders oder Tracks anzeigt statt ein unbekanntes Icon
-- **NAS Track-Titel** - Individuelle Track-Titel werden beim Album-Playback aus der DLNA-Antwort extrahiert und angezeigt
-
-## v1.13.4
-- **Hardware-Button Timing** - 1,5s Delay nach Button-Druck bevor DLNA gesendet wird, damit die Box den internen Preset-Versuch abschließen kann. Erster Tastendruck funktioniert jetzt sofort.
-
-## v1.13.3
-- **Preset-Wechsel Fix** - Beim Wechsel von NAS auf Radio wird die NAS-Playlist gelöscht, damit Auto-Next-Track nicht den Radio-Stream überschreibt
-
-## v1.13.2
-- **NAS Album-Playback** - Ganze Alben werden abgespielt mit automatischem Wechsel zum nächsten Track per WebSocket STOP_STATE Erkennung
-
-## v1.13.0 - v1.13.1
-- **Hardware-Buttons wiederhergestellt** - Die physischen Preset-Tasten 1-6 auf der Box funktionieren wieder! Das Plugin erkennt den Button-Druck per WebSocket (`nowSelectionUpdated`) und spielt den konfigurierten Content per DLNA ab. Keine DNS-Redirects oder externe Server nötig.
-- **README + CHANGELOG** aktualisiert für Post-Cloud-Shutdown
+## v1.13.0 - v1.13.2
+- **Hardware buttons restored** - Physical preset buttons 1-6 work again via WebSocket `nowSelectionUpdated` interception + DLNA playback. No DNS redirects or external servers needed
+- **NAS album playback** - Full albums with auto-next-track via WebSocket STOP_STATE detection
 
 ## v1.12.0 - v1.12.3
-- **Radio-Streaming nach Cloud-Shutdown** - Internet Radio läuft jetzt über DLNA (`SetAVTransportURI` auf Port 8091) statt über die abgeschaltete Bose Cloud
-- **HTTPS → HTTP** - HTTPS-URLs werden automatisch zu HTTP konvertiert (Bose kann kein HTTPS)
-- **NAS/DLNA nach Cloud-Shutdown** - NAS-Presets lösen die DLNA ObjectID zur direkten Media-URL auf und spielen über DLNA Port 8091
+- **Radio streaming after cloud shutdown** - Internet radio via DLNA `SetAVTransportURI` on port 8091 (replaces discontinued Bose Cloud)
+- **HTTPS to HTTP** - HTTPS URLs auto-converted (Bose doesn't support HTTPS)
+- **NAS/DLNA after cloud shutdown** - NAS presets resolve DLNA ObjectID to direct media URL via UPnP browse
 
 ## v1.11.0 - v1.11.5
-- **MAC-basierte Geräte-Identifikation** - Geräte werden per MAC-Adresse (`deviceID`) identifiziert
-- **HomeKit UUID aus MAC** - UUID bleibt stabil auch bei IP-Wechsel
-- **Auto-Save Config** - Geänderte IPs werden automatisch in die `config.json` geschrieben
-- **Leere Presets ausgeblendet** - Nicht konfigurierte Slots sind in HomeKit nicht sichtbar
-- **Alte Device-Presets ignoriert** - Nur Config-Presets werden angezeigt
-- **Input Source Namen** - Korrekte Anzeige der Preset-Namen
+- **MAC-based device identification** - Devices identified by MAC address (`deviceID`)
+- **HomeKit UUID from MAC** - UUID stays stable across IP changes
+- **Auto-save config** - Changed IPs written back to `config.json`
+- **Hidden empty presets** - Unconfigured slots not visible in HomeKit
+- **Device presets ignored** - Only config presets shown
 
 ## v1.9.2 - v1.10.0
-- **Retry bei offline Geräten** - Alle 30 Sekunden erneuter Verbindungsversuch
-- **Status-Refresh bei WebSocket-Reconnect** - HomeKit zeigt immer den aktuellen Status
-- **mDNS Discovery** - Läuft immer, unabhängig von `autoDiscover`
-- **IP-Remapping** - IPs werden beim Start per mDNS + MAC aufgelöst
+- **Retry offline devices** - Retry every 30 seconds
+- **WebSocket reconnect refresh** - HomeKit always shows current status
+- **mDNS discovery** - Always runs, independent of `autoDiscover`
+- **IP remapping** - IPs resolved via mDNS + MAC at startup
 
 ## v1.9.1
-- NAS/DLNA Unterstützung mit Browser-Wizard in der Homebridge UI
+- NAS/DLNA support with browser wizard in Homebridge UI
 
 ## v1.8.6
-- Initiale Veröffentlichung
+- Initial release
