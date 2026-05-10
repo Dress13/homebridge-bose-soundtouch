@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.15.7
+- **Input source ordering fixed** - DisplayOrder TLV8 characteristic forces correct order in HomeKit: presets by slot, then AUX, then Bluetooth
+- **Service tile ordering** - ServiceLabelIndex on Volume (1) and Bass (2) ensures correct tile order in Home app
+- **InputSource names protected** - ConfiguredName is protected from being overwritten by HomeKit setup wizard
+- **Eingabequellen-Reihenfolge** - DisplayOrder TLV8 erzwingt korrekte Reihenfolge: Presets nach Taste, dann AUX, dann Bluetooth
+- **Kachel-Reihenfolge** - ServiceLabelIndex auf Lautstärke (1) und Bass (2) für korrekte Anordnung
+- **InputSource-Namen geschützt** - ConfiguredName wird vom HomeKit Setup-Wizard nicht mehr überschrieben
+
 ## v1.15.0
 - **Bass control** - Bass slider in HomeKit as "Bass" lightbulb service. Maps 0-100% to the device's bass range. Only shown if the device supports bass. Real-time updates via WebSocket.
 - **Bass-Regler** - Bass-Slider in HomeKit als "Bass" Lightbulb. Mappt 0-100% auf den Bass-Bereich der Box. Nur sichtbar wenn die Box Bass unterstützt. Echtzeit-Updates per WebSocket.
