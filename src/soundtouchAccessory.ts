@@ -68,10 +68,7 @@ export class SoundTouchAccessory {
     // Setup Input Sources immediately (required for External Accessories)
     this.setupInputSources();
 
-    // Setup Multi-Room Group Switch
-    this.setupGroupSwitch();
-
-    // Initialize device (async - will update preset names when ready)
+    // Initialize device (async - bass and multi-room added after init)
     this.initialize();
   }
 
@@ -674,8 +671,11 @@ export class SoundTouchAccessory {
       // Update input source names from config
       this.updateInputSourceNames();
 
-      // Setup bass control if available
+      // Setup bass control if available (order: Volume, Bass, Multi-Room)
       await this.setupBassLightbulb();
+
+      // Setup Multi-Room after bass so it appears last
+      this.setupGroupSwitch();
 
       // Connect WebSocket for real-time updates
       this.setupWebSocket();
