@@ -18,6 +18,7 @@ export class SoundTouchAccessory {
   private televisionService!: Service;
   private speakerService!: Service;
   private volumeLightbulbService!: Service;
+  private bassLightbulbService?: Service;
   private groupSwitchService!: Service;
   private inputServices: Service[] = [];
 
@@ -25,6 +26,10 @@ export class SoundTouchAccessory {
   private deviceInfo?: DeviceInfo;
   private macAddress?: string;
   private currentVolume = 0;
+  private currentBass = 0;
+  private bassMin = 0;
+  private bassMax = 0;
+  private bassAvailable = false;
   private currentMute = false;
   private isPoweredOn = false;
   private isGrouped = false;
@@ -261,6 +266,81 @@ export class SoundTouchAccessory {
           this.platform.log.error('Failed to set volume via lightbulb:', error);
         }
       });
+  }
+
+  private async setupBassLightbulb(): Promise<void> {
+    try {
+      const caps = await this.client.getBassCapabilities();
+      if (!caps.bassAvailable) {
+        return;
+      }
+
+      this.bassAvailable = true;
+      this.bassMin = caps.bassMin;
+      this.bassMax = caps.bassMax;
+
+      // Get current bass level
+      const bass = await this.client.getBass();
+      this.currentBass = bass.actualbass;
+
+      const bassName = 'Bass';
+      this.bassLightbulbService = this.accessory.addService(
+        this.platform.Service.Lightbulb,
+        bassName,
+        'bass-lightbulb',
+      );
+      this.bassLightbulbService
+        .setCharacteristic(this.platform.Characteristic.Name, bassName)
+        .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+        .setValue(bassName);
+
+      this.televisionService.addLinkedService(this.bassLightbulbService);
+
+      // On/Off: bass at default (50%) or min
+      this.bassLightbulbService.getCharacteristic(this.platform.Characteristic.On)
+        .onGet(() => this.currentBass > this.bassMin)
+        .onSet(async (value) => {
+          try {
+            const level = value ? caps.bassDefault : this.bassMin;
+            await this.client.setBass(level);
+            this.currentBass = level;
+          } catch (error) {
+            this.platform.log.error('Failed to set bass:', error);
+          }
+        });
+
+      // Brightness: maps 0-100 to bassMin..bassMax
+      this.bassLightbulbService.getCharacteristic(this.platform.Characteristic.Brightness)
+        .onGet(() => this.bassToPercent(this.currentBass))
+        .onSet(async (value) => {
+          try {
+            const level = this.percentToBass(value as number);
+            await this.client.setBass(level);
+            this.currentBass = level;
+          } catch (error) {
+            this.platform.log.error('Failed to set bass:', error);
+          }
+        });
+
+      this.platform.log.info(
+        `${this.accessory.displayName} bass available (${this.bassMin} to ${this.bassMax})`,
+      );
+    } catch {
+      // Bass not supported on this device
+    }
+  }
+
+  private bassToPercent(bass: number): number {
+    const range = this.bassMax - this.bassMin;
+    if (range === 0) {
+      return 50;
+    }
+    return Math.round(((bass - this.bassMin) / range) * 100);
+  }
+
+  private percentToBass(percent: number): number {
+    const range = this.bassMax - this.bassMin;
+    return Math.round(this.bassMin + (percent / 100) * range);
   }
 
   private setupInputSources(): void {
@@ -594,6 +674,9 @@ export class SoundTouchAccessory {
       // Update input source names from config
       this.updateInputSourceNames();
 
+      // Setup bass control if available
+      await this.setupBassLightbulb();
+
       // Connect WebSocket for real-time updates
       this.setupWebSocket();
 
@@ -672,6 +755,23 @@ export class SoundTouchAccessory {
           `${this.accessory.displayName} hardware button ${data.presetId} pressed`,
         );
         this.handleHardwarePreset(data.presetId);
+      }
+    });
+
+    this.webSocket.on('bassUpdated', (data) => {
+      if (this.bassAvailable && this.bassLightbulbService) {
+        this.currentBass = data.actualbass;
+        this.bassLightbulbService.updateCharacteristic(
+          this.platform.Characteristic.Brightness,
+          this.bassToPercent(this.currentBass),
+        );
+        this.bassLightbulbService.updateCharacteristic(
+          this.platform.Characteristic.On,
+          this.currentBass > this.bassMin,
+        );
+        this.platform.log.debug(
+          `${this.accessory.displayName} Bass: ${this.currentBass}`,
+        );
       }
     });
 
