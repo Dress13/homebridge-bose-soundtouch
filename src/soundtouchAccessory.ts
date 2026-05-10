@@ -368,6 +368,20 @@ export class SoundTouchAccessory {
     this.addInputSource('Bluetooth', 'bluetooth', identifier, 'OTHER');
     this.inputMap.push({ type: 'bluetooth', slot: 0 });
 
+    // Set DisplayOrder TLV8 to force correct ordering in HomeKit
+    const totalInputs = this.inputServices.length;
+    const tlv8Bytes: number[] = [];
+    for (let i = 1; i <= totalInputs; i++) {
+      tlv8Bytes.push(0x01, 0x01, i); // TAG=1, LENGTH=1, VALUE=identifier
+      if (i < totalInputs) {
+        tlv8Bytes.push(0x00, 0x00); // TAG=0, LENGTH=0 (separator)
+      }
+    }
+    this.televisionService.setCharacteristic(
+      this.platform.Characteristic.DisplayOrder,
+      Buffer.from(tlv8Bytes).toString('base64'),
+    );
+
     this.platform.log.info(`Setup ${this.inputServices.length} input sources for ${this.accessory.displayName}`);
   }
 
