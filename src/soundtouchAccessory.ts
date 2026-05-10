@@ -209,14 +209,17 @@ export class SoundTouchAccessory {
   }
 
   private setupVolumeLightbulb(): void {
-    const displayName = this.deviceConfig.name || this.accessory.displayName;
-
     // Create Lightbulb service for volume control with slider
+    const volumeName = 'Lautstärke';
     this.volumeLightbulbService = this.accessory.addService(
       this.platform.Service.Lightbulb,
-      displayName + ' Lautstärke',
+      volumeName,
       'volume-lightbulb',
     );
+    this.volumeLightbulbService
+      .setCharacteristic(this.platform.Characteristic.Name, volumeName)
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue(volumeName);
 
     // Link to TV service so it appears under the TV accessory
     this.televisionService.addLinkedService(this.volumeLightbulbService);
@@ -344,7 +347,9 @@ export class SoundTouchAccessory {
     );
 
     this.groupSwitchService
-      .setCharacteristic(this.platform.Characteristic.Name, groupName);
+      .setCharacteristic(this.platform.Characteristic.Name, groupName)
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue(groupName);
 
     this.groupSwitchService.getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => this.isGrouped)
