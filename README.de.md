@@ -16,6 +16,7 @@ Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple 
 - **NAS/DLNA** - Musik von NAS-Servern als Presets konfigurierbar (mit Browser-Wizard)
 - **Hardware-Buttons** - Die physischen Preset-Tasten 1-6 auf der Box funktionieren wieder! Das Plugin fängt den Button-Druck per WebSocket ab und spielt den konfigurierten Content per DLNA
 - **Spotify & Amazon Music** - Streaming-Dienste weiterhin unterstützt
+- **Multi-Room** - Lautsprecher per HomeKit-Schalter gruppieren - ein Tipp zum Hinzufügen/Entfernen aus der Zone. Master wird automatisch erkannt.
 - **Auto-Reconnect** - Offline-Geräte werden alle 30s erneut versucht
 - **Echtzeit-Updates** - WebSocket-Verbindung für sofortige Status-Änderungen in HomeKit
 - **Lautstärke-Slider** - Lautstärke als Helligkeitsregler in der Home App

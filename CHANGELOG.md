@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.14.0
+- **Multi-Room Gruppieren** - Jede Box bekommt einen "Gruppieren"-Schalter in HomeKit. Einschalten fügt die Box zur Gruppe des gerade spielenden Masters hinzu, Ausschalten entfernt sie. Steuerbar per Siri: "Hey Siri, schalte Gruppieren Küche ein"
+
+## v1.13.10
+- **Nur konfigurierte Presets** - InputSources werden nur noch für tatsächlich konfigurierte Presets erstellt. Alte Box-Presets erscheinen nicht mehr in HomeKit.
+
+## v1.13.9
+- **Child Bridge Hinweis** - README erklärt warum die Child Bridge nicht zu HomeKit hinzugefügt werden darf
+
+## v1.13.8
+- **Child Bridge Hinweis** - Hinweis in README dass nur die einzelnen Speaker-Accessories hinzugefügt werden
+
 ## v1.13.6
 - **English + German README** - README.md in English, README.de.md auf Deutsch
 

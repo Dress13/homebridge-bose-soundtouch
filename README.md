@@ -16,6 +16,7 @@ A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
 - **NAS/DLNA** - Music from NAS servers as presets with album playback and auto-next-track (includes browser wizard)
 - **Hardware Buttons** - Physical preset buttons 1-6 on the speaker work again! The plugin intercepts the button press via WebSocket and plays the configured content via DLNA
 - **Spotify & Amazon Music** - Streaming services still supported
+- **Multi-Room** - Group speakers via HomeKit switch - one tap to add/remove a speaker from the zone. Master is auto-detected.
 - **Auto-Reconnect** - Offline devices retry every 30 seconds
 - **Real-time Updates** - WebSocket connection for instant status changes in HomeKit
 - **Volume Slider** - Volume as brightness slider in Home app
@@ -184,6 +185,10 @@ Physical preset buttons 1-6 send a `nowSelectionUpdated` WebSocket event with th
 ### NAS Album Playback
 
 All tracks from an album/folder are loaded from MiniDLNA via UPnP Browse. The plugin plays them sequentially - when a track ends (`STOP_STATE` via WebSocket), the next track starts automatically.
+
+### Multi-Room
+
+Each speaker has a "Group" switch in HomeKit. When turned on, the speaker joins the zone of the currently playing master. The master is auto-detected (the first speaker that is playing). Zone state syncs in real-time via WebSocket `zoneUpdated` events. Siri: "Hey Siri, turn on Group Kitchen".
 
 ### IP Management
 
