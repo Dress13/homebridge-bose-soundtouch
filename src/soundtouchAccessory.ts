@@ -688,6 +688,7 @@ export class SoundTouchAccessory {
       this.platform.log.info(`WebSocket connected for ${this.accessory.displayName}`);
       // Refresh state on (re)connect so HomeKit gets the current status
       this.refreshState();
+      this.refreshGroupState();
     });
 
     this.webSocket.on('disconnected', () => {
