@@ -224,6 +224,9 @@ export class SoundTouchAccessory {
       .setCharacteristic(this.platform.Characteristic.Name, volumeName)
       .addCharacteristic(this.platform.Characteristic.ConfiguredName)
       .setValue(volumeName);
+    this.volumeLightbulbService
+      .addCharacteristic(this.platform.Characteristic.ServiceLabelIndex)
+      .setValue(1);
 
     // Link to TV service so it appears under the TV accessory
     this.televisionService.addLinkedService(this.volumeLightbulbService);
@@ -290,6 +293,9 @@ export class SoundTouchAccessory {
         .setCharacteristic(this.platform.Characteristic.Name, bassName)
         .addCharacteristic(this.platform.Characteristic.ConfiguredName)
         .setValue(bassName);
+      this.bassLightbulbService
+        .addCharacteristic(this.platform.Characteristic.ServiceLabelIndex)
+        .setValue(2);
 
       this.televisionService.addLinkedService(this.bassLightbulbService);
 
