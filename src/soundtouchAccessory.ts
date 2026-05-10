@@ -295,16 +295,19 @@ export class SoundTouchAccessory {
     // Add AUX input (Identifier 7)
     const auxService = this.accessory.addService(
       this.platform.Service.InputSource,
-      'AUX',
+      'AUX Eingang',
       'aux',
     );
     auxService
       .setCharacteristic(this.platform.Characteristic.Identifier, 7)
-      .setCharacteristic(this.platform.Characteristic.ConfiguredName, 'AUX')
-      .setCharacteristic(this.platform.Characteristic.Name, 'AUX')
-      .setCharacteristic(this.platform.Characteristic.IsConfigured, this.platform.Characteristic.IsConfigured.CONFIGURED)
-      .setCharacteristic(this.platform.Characteristic.InputSourceType, this.platform.Characteristic.InputSourceType.OTHER)
-      .setCharacteristic(this.platform.Characteristic.InputDeviceType, this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM);
+      .setCharacteristic(this.platform.Characteristic.ConfiguredName, 'AUX Eingang')
+      .setCharacteristic(this.platform.Characteristic.Name, 'AUX Eingang')
+      .setCharacteristic(this.platform.Characteristic.IsConfigured,
+        this.platform.Characteristic.IsConfigured.CONFIGURED)
+      .setCharacteristic(this.platform.Characteristic.InputSourceType,
+        this.platform.Characteristic.InputSourceType.OTHER)
+      .setCharacteristic(this.platform.Characteristic.InputDeviceType,
+        this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM);
     this.televisionService.addLinkedService(auxService);
     this.inputServices.push(auxService);
 
@@ -318,9 +321,12 @@ export class SoundTouchAccessory {
       .setCharacteristic(this.platform.Characteristic.Identifier, 8)
       .setCharacteristic(this.platform.Characteristic.ConfiguredName, 'Bluetooth')
       .setCharacteristic(this.platform.Characteristic.Name, 'Bluetooth')
-      .setCharacteristic(this.platform.Characteristic.IsConfigured, this.platform.Characteristic.IsConfigured.CONFIGURED)
-      .setCharacteristic(this.platform.Characteristic.InputSourceType, this.platform.Characteristic.InputSourceType.OTHER)
-      .setCharacteristic(this.platform.Characteristic.InputDeviceType, this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM);
+      .setCharacteristic(this.platform.Characteristic.IsConfigured,
+        this.platform.Characteristic.IsConfigured.CONFIGURED)
+      .setCharacteristic(this.platform.Characteristic.InputSourceType,
+        this.platform.Characteristic.InputSourceType.OTHER)
+      .setCharacteristic(this.platform.Characteristic.InputDeviceType,
+        this.platform.Characteristic.InputDeviceType.AUDIO_SYSTEM);
     this.televisionService.addLinkedService(btService);
     this.inputServices.push(btService);
 
@@ -330,14 +336,15 @@ export class SoundTouchAccessory {
   private setupGroupSwitch(): void {
     const displayName = this.deviceConfig.name || this.accessory.displayName;
 
+    const groupName = displayName + ' Multi-Room';
     this.groupSwitchService = this.accessory.addService(
       this.platform.Service.Switch,
-      displayName + ' Gruppieren',
+      groupName,
       'group-switch',
     );
 
     this.groupSwitchService
-      .setCharacteristic(this.platform.Characteristic.Name, displayName + ' Gruppieren');
+      .setCharacteristic(this.platform.Characteristic.Name, groupName);
 
     this.groupSwitchService.getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => this.isGrouped)
