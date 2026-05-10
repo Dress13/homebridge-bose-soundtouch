@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.15.0
+- **Bass control** - Bass slider in HomeKit as "Bass" lightbulb service. Maps 0-100% to the device's bass range. Only shown if the device supports bass. Real-time updates via WebSocket.
+- **Bass-Regler** - Bass-Slider in HomeKit als "Bass" Lightbulb. Mappt 0-100% auf den Bass-Bereich der Box. Nur sichtbar wenn die Box Bass unterstützt. Echtzeit-Updates per WebSocket.
+
 ## v1.14.6
 - **Input source ordering** - Presets are displayed in slot order (1-6), then AUX, then Bluetooth. No more alphabetical sorting by HomeKit. Sequential identifiers ensure correct order.
 - **Eingabequellen-Reihenfolge** - Presets werden in Tasten-Reihenfolge (1-6) angezeigt, dann AUX, dann Bluetooth. Keine alphabetische Sortierung mehr.
