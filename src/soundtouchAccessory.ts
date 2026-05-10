@@ -282,9 +282,9 @@ export class SoundTouchAccessory {
 
       const bassName = 'Bass';
       this.bassLightbulbService = this.accessory.addService(
-        this.platform.Service.Lightbulb,
+        this.platform.Service.Fan,
         bassName,
-        'bass-lightbulb',
+        'bass-fan',
       );
       this.bassLightbulbService
         .setCharacteristic(this.platform.Characteristic.Name, bassName)
@@ -293,7 +293,7 @@ export class SoundTouchAccessory {
 
       this.televisionService.addLinkedService(this.bassLightbulbService);
 
-      // On/Off: bass at default (50%) or min
+      // On/Off: bass at default or min
       this.bassLightbulbService.getCharacteristic(this.platform.Characteristic.On)
         .onGet(() => this.currentBass > this.bassMin)
         .onSet(async (value) => {
@@ -306,8 +306,10 @@ export class SoundTouchAccessory {
           }
         });
 
-      // Brightness: maps 0-100 to bassMin..bassMax
-      this.bassLightbulbService.getCharacteristic(this.platform.Characteristic.Brightness)
+      // RotationSpeed: maps 0-100 to bassMin..bassMax
+      this.bassLightbulbService.getCharacteristic(
+        this.platform.Characteristic.RotationSpeed,
+      )
         .onGet(() => this.bassToPercent(this.currentBass))
         .onSet(async (value) => {
           try {
@@ -772,7 +774,7 @@ export class SoundTouchAccessory {
       if (this.bassAvailable && this.bassLightbulbService) {
         this.currentBass = data.actualbass;
         this.bassLightbulbService.updateCharacteristic(
-          this.platform.Characteristic.Brightness,
+          this.platform.Characteristic.RotationSpeed,
           this.bassToPercent(this.currentBass),
         );
         this.bassLightbulbService.updateCharacteristic(
