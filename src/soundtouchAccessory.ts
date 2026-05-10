@@ -224,9 +224,6 @@ export class SoundTouchAccessory {
       .setCharacteristic(this.platform.Characteristic.Name, volumeName)
       .addCharacteristic(this.platform.Characteristic.ConfiguredName)
       .setValue(volumeName);
-    this.volumeLightbulbService
-      .addCharacteristic(this.platform.Characteristic.ServiceLabelIndex)
-      .setValue(1);
 
     // Link to TV service so it appears under the TV accessory
     this.televisionService.addLinkedService(this.volumeLightbulbService);
@@ -285,17 +282,14 @@ export class SoundTouchAccessory {
 
       const bassName = 'Bass';
       this.bassLightbulbService = this.accessory.addService(
-        this.platform.Service.Lightbulb,
+        this.platform.Service.Fan,
         bassName,
-        'bass-lightbulb',
+        'bass-fan',
       );
       this.bassLightbulbService
         .setCharacteristic(this.platform.Characteristic.Name, bassName)
         .addCharacteristic(this.platform.Characteristic.ConfiguredName)
         .setValue(bassName);
-      this.bassLightbulbService
-        .addCharacteristic(this.platform.Characteristic.ServiceLabelIndex)
-        .setValue(2);
 
       this.televisionService.addLinkedService(this.bassLightbulbService);
 
@@ -312,9 +306,9 @@ export class SoundTouchAccessory {
           }
         });
 
-      // Brightness: maps 0-100 to bassMin..bassMax
+      // RotationSpeed: maps 0-100 to bassMin..bassMax
       this.bassLightbulbService.getCharacteristic(
-        this.platform.Characteristic.Brightness,
+        this.platform.Characteristic.RotationSpeed,
       )
         .onGet(() => this.bassToPercent(this.currentBass))
         .onSet(async (value) => {
@@ -794,7 +788,7 @@ export class SoundTouchAccessory {
       if (this.bassAvailable && this.bassLightbulbService) {
         this.currentBass = data.actualbass;
         this.bassLightbulbService.updateCharacteristic(
-          this.platform.Characteristic.Brightness,
+          this.platform.Characteristic.RotationSpeed,
           this.bassToPercent(this.currentBass),
         );
         this.bassLightbulbService.updateCharacteristic(
