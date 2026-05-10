@@ -18,6 +18,7 @@ export class SoundTouchAccessory {
   private televisionService!: Service;
   private speakerService!: Service;
   private volumeLightbulbService!: Service;
+  private groupSwitchService!: Service;
   private inputServices: Service[] = [];
 
   // State
@@ -26,7 +27,9 @@ export class SoundTouchAccessory {
   private currentVolume = 0;
   private currentMute = false;
   private isPoweredOn = false;
+  private isGrouped = false;
   private currentInputIndex = 0;
+  private currentPlayStatus = '';
 
   constructor(
     private readonly platform: SoundTouchPlatform,
@@ -56,8 +59,10 @@ export class SoundTouchAccessory {
     this.setupVolumeLightbulb();
 
     // Setup Input Sources immediately (required for External Accessories)
-    // Names will be updated later when device info is loaded
     this.setupInputSources();
+
+    // Setup Multi-Room Group Switch
+    this.setupGroupSwitch();
 
     // Initialize device (async - will update preset names when ready)
     this.initialize();
@@ -322,6 +327,97 @@ export class SoundTouchAccessory {
     this.platform.log.info(`Setup ${this.inputServices.length} input sources for ${this.accessory.displayName}`);
   }
 
+  private setupGroupSwitch(): void {
+    const displayName = this.deviceConfig.name || this.accessory.displayName;
+
+    this.groupSwitchService = this.accessory.addService(
+      this.platform.Service.Switch,
+      displayName + ' Gruppieren',
+      'group-switch',
+    );
+
+    this.groupSwitchService
+      .setCharacteristic(this.platform.Characteristic.Name, displayName + ' Gruppieren');
+
+    this.groupSwitchService.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.isGrouped)
+      .onSet(async (value: CharacteristicValue) => {
+        await this.handleGroupSwitch(value as boolean);
+      });
+
+    this.televisionService.addLinkedService(this.groupSwitchService);
+  }
+
+  private async handleGroupSwitch(value: boolean): Promise<void> {
+    if (value) {
+      // Find master (a box that is currently playing)
+      const master = this.platform.findPlayingAccessory(this);
+      if (!master) {
+        this.platform.log.warn(
+          `${this.accessory.displayName}: no playing device found to group with`,
+        );
+        // Reset switch state
+        setTimeout(() => {
+          this.groupSwitchService.updateCharacteristic(
+            this.platform.Characteristic.On, false,
+          );
+        }, 100);
+        return;
+      }
+
+      const masterInfo = master.getDeviceInfo();
+      const myInfo = this.deviceInfo;
+      if (!masterInfo || !myInfo) {
+        return;
+      }
+
+      try {
+        const zone = await master.getClient().getZone();
+        const slave = {
+          ipaddress: this.deviceConfig.host,
+          macaddress: myInfo.macAddress,
+        };
+        if (zone && zone.members.length > 0) {
+          await master.getClient().addZoneSlave(masterInfo.macAddress, [slave]);
+        } else {
+          await master.getClient().createZone(masterInfo.macAddress, [slave]);
+        }
+        this.isGrouped = true;
+        this.platform.log.info(
+          `${this.accessory.displayName} grouped with ${master.getAccessoryName()}`,
+        );
+      } catch (error) {
+        this.platform.log.error('Failed to create group:', error);
+        setTimeout(() => {
+          this.groupSwitchService.updateCharacteristic(
+            this.platform.Characteristic.On, false,
+          );
+        }, 100);
+      }
+    } else {
+      // Remove self from zone
+      const master = await this.platform.findMasterForSlave(this);
+      if (master) {
+        const masterInfo = master.getDeviceInfo();
+        const myInfo = this.deviceInfo;
+        if (masterInfo && myInfo) {
+          try {
+            await master.getClient().removeZoneSlave(
+              masterInfo.macAddress,
+              [{ ipaddress: this.deviceConfig.host, macaddress: myInfo.macAddress }],
+            );
+            this.platform.log.info(
+              `${this.accessory.displayName} removed from group`,
+            );
+          } catch (error) {
+            this.platform.log.error('Failed to remove from group:', error);
+          }
+        }
+      }
+      this.isGrouped = false;
+    }
+  }
+
   private async setActiveInput(value: CharacteristicValue): Promise<void> {
     const index = value as number;
     this.currentInputIndex = index;
@@ -542,6 +638,7 @@ export class SoundTouchAccessory {
         this.platform.log.info(`${this.accessory.displayName} Power: ${this.isPoweredOn ? 'ON' : 'OFF'}`);
       }
 
+      this.currentPlayStatus = data.playStatus || '';
       this.platform.log.debug(`${this.accessory.displayName} Source: ${data.source}, Playing: ${data.playStatus}`);
 
       // Auto-play next track when current track ends (NAS playlist)
@@ -568,6 +665,11 @@ export class SoundTouchAccessory {
         );
         this.handleHardwarePreset(data.presetId);
       }
+    });
+
+    this.webSocket.on('zoneUpdated', () => {
+      // Zone changed - refresh group state
+      this.refreshGroupState();
     });
 
     this.webSocket.on('connected', () => {
@@ -638,6 +740,24 @@ export class SoundTouchAccessory {
       this.platform.log.error(
         `${this.accessory.displayName} failed to play preset ${presetId}:`, error,
       );
+    }
+  }
+
+  private async refreshGroupState(): Promise<void> {
+    try {
+      const zone = await this.client.getZone();
+      const wasGrouped = this.isGrouped;
+      this.isGrouped = zone !== null && zone.members.length > 0;
+      if (wasGrouped !== this.isGrouped) {
+        this.groupSwitchService.updateCharacteristic(
+          this.platform.Characteristic.On, this.isGrouped,
+        );
+        this.platform.log.info(
+          `${this.accessory.displayName} group: ${this.isGrouped ? 'ON' : 'OFF'}`,
+        );
+      }
+    } catch {
+      // Ignore errors during group state refresh
     }
   }
 
@@ -722,6 +842,14 @@ export class SoundTouchAccessory {
 
   setMac(mac: string): void {
     this.macAddress = mac.toUpperCase();
+  }
+
+  getAccessoryName(): string {
+    return this.deviceConfig.name || this.accessory.displayName;
+  }
+
+  isPlaying(): boolean {
+    return this.isPoweredOn && this.currentPlayStatus === 'PLAY_STATE';
   }
 
   destroy(): void {

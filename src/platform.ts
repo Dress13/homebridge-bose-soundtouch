@@ -359,4 +359,42 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   getDeviceConfig(host: string): DeviceConfig | undefined {
     return this.config.devices?.find(d => d.host === host);
   }
+
+  // Multi-room: find a box that is currently playing (to be the master)
+  findPlayingAccessory(
+    exclude?: SoundTouchAccessory,
+  ): SoundTouchAccessory | undefined {
+    for (const accessory of this.soundTouchAccessories.values()) {
+      if (accessory !== exclude && accessory.isPlaying()) {
+        return accessory;
+      }
+    }
+    return undefined;
+  }
+
+  // Multi-room: find the master for a slave box
+  async findMasterForSlave(
+    slave: SoundTouchAccessory,
+  ): Promise<SoundTouchAccessory | undefined> {
+    const slaveInfo = slave.getDeviceInfo();
+    if (!slaveInfo) {
+      return undefined;
+    }
+    for (const accessory of this.soundTouchAccessories.values()) {
+      if (accessory === slave) {
+        continue;
+      }
+      try {
+        const zone = await accessory.getClient().getZone();
+        if (zone && zone.members.some(
+          m => m.macaddress === slaveInfo.macAddress,
+        )) {
+          return accessory;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+    return undefined;
+  }
 }
