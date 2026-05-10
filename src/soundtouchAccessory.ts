@@ -282,9 +282,9 @@ export class SoundTouchAccessory {
 
       const bassName = 'Bass';
       this.bassLightbulbService = this.accessory.addService(
-        this.platform.Service.Fan,
+        this.platform.Service.Lightbulb,
         bassName,
-        'bass-fan',
+        'bass-lightbulb',
       );
       this.bassLightbulbService
         .setCharacteristic(this.platform.Characteristic.Name, bassName)
@@ -306,9 +306,9 @@ export class SoundTouchAccessory {
           }
         });
 
-      // RotationSpeed: maps 0-100 to bassMin..bassMax
+      // Brightness: maps 0-100 to bassMin..bassMax
       this.bassLightbulbService.getCharacteristic(
-        this.platform.Characteristic.RotationSpeed,
+        this.platform.Characteristic.Brightness,
       )
         .onGet(() => this.bassToPercent(this.currentBass))
         .onSet(async (value) => {
@@ -774,7 +774,7 @@ export class SoundTouchAccessory {
       if (this.bassAvailable && this.bassLightbulbService) {
         this.currentBass = data.actualbass;
         this.bassLightbulbService.updateCharacteristic(
-          this.platform.Characteristic.RotationSpeed,
+          this.platform.Characteristic.Brightness,
           this.bassToPercent(this.currentBass),
         );
         this.bassLightbulbService.updateCharacteristic(
