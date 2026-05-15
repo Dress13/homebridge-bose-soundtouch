@@ -366,16 +366,16 @@ export class SoundTouchAccessory {
       }
     }
 
-    // AUX and Bluetooth always as InputSources
-    this.addInputSource('AUX Eingang', 'aux', identifier, 'OTHER');
-    this.inputMap.push({ type: 'aux', slot: 0 });
-    identifier++;
+    if (!useButtons) {
+      // Menu mode: AUX and Bluetooth as InputSources
+      this.addInputSource('AUX Eingang', 'aux', identifier, 'OTHER');
+      this.inputMap.push({ type: 'aux', slot: 0 });
+      identifier++;
 
-    this.addInputSource('Bluetooth', 'bluetooth', identifier, 'OTHER');
-    this.inputMap.push({ type: 'bluetooth', slot: 0 });
-
-    if (useButtons) {
-      // Button mode: create separate Switch per preset
+      this.addInputSource('Bluetooth', 'bluetooth', identifier, 'OTHER');
+      this.inputMap.push({ type: 'bluetooth', slot: 0 });
+    } else {
+      // Button mode: separate Switches for everything
       this.setupPresetButtons();
     }
 
@@ -490,8 +490,66 @@ export class SoundTouchAccessory {
       this.presetSwitchSlots.push(i);
     }
 
+    // AUX button (slot -1)
+    const auxSwitch = this.accessory.addService(
+      this.platform.Service.Switch, 'AUX Eingang', 'aux-button',
+    );
+    auxSwitch.setCharacteristic(this.platform.Characteristic.Name, 'AUX Eingang')
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue('AUX Eingang');
+    auxSwitch.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -1)
+      .onSet(async (value: CharacteristicValue) => {
+        if (value) {
+          if (!this.isPoweredOn) {
+            await this.client.powerOn();
+            this.isPoweredOn = true;
+            this.updatePowerState();
+          }
+          await this.client.selectAux();
+          this.lastActivePresetSlot = -1;
+        } else {
+          await this.client.powerOff();
+          this.isPoweredOn = false;
+          this.updatePowerState();
+          this.lastActivePresetSlot = 0;
+        }
+        this.updatePresetSwitchStates();
+      });
+    this.presetSwitchServices.push(auxSwitch);
+    this.presetSwitchSlots.push(-1);
+
+    // Bluetooth button (slot -2)
+    const btSwitch = this.accessory.addService(
+      this.platform.Service.Switch, 'Bluetooth', 'bluetooth-button',
+    );
+    btSwitch.setCharacteristic(this.platform.Characteristic.Name, 'Bluetooth')
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue('Bluetooth');
+    btSwitch.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -2)
+      .onSet(async (value: CharacteristicValue) => {
+        if (value) {
+          if (!this.isPoweredOn) {
+            await this.client.powerOn();
+            this.isPoweredOn = true;
+            this.updatePowerState();
+          }
+          await this.client.selectBluetooth();
+          this.lastActivePresetSlot = -2;
+        } else {
+          await this.client.powerOff();
+          this.isPoweredOn = false;
+          this.updatePowerState();
+          this.lastActivePresetSlot = 0;
+        }
+        this.updatePresetSwitchStates();
+      });
+    this.presetSwitchServices.push(btSwitch);
+    this.presetSwitchSlots.push(-2);
+
     this.platform.log.info(
-      `Setup ${this.presetSwitchServices.length} preset buttons for ${this.accessory.displayName}`,
+      `Setup ${this.presetSwitchServices.length} buttons for ${this.accessory.displayName}`,
     );
   }
 
