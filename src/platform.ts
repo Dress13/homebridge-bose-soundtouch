@@ -35,6 +35,8 @@ export interface DeviceConfig {
   room?: string;
   deviceIcon?: number;       // Device-specific icon (HomeKit category)
   presets?: PresetConfig[];  // Device-specific preset configuration
+  autoResume?: boolean;      // Resume last preset on power on
+  presetDisplay?: 'menu' | 'buttons'; // How presets are shown in HomeKit
 }
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {

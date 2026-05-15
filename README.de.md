@@ -21,6 +21,8 @@ Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple 
 - **Echtzeit-Updates** - WebSocket-Verbindung für sofortige Status-Änderungen in HomeKit
 - **Lautstärke-Slider** - Lautstärke als Helligkeitsregler in der Home App
 - **Bass-Regler** - Bass als Slider in der Home App (wenn die Box Bass unterstützt)
+- **Auto-Resume** - Letztes Preset automatisch abspielen beim Einschalten (optional)
+- **Preset-Buttons** - Wahl zwischen Dropdown-Menü oder einzelnen Schaltern pro Preset in HomeKit
 
 ## Bose Cloud-Shutdown (Mai 2026)
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.16.0
+- **Auto-Resume** - Configurable option to automatically resume the last active preset when the speaker is powered on. Enable per device in settings.
+- **Preset Buttons** - New `presetDisplay` option: choose between `menu` (dropdown, default) or `buttons` (separate switch per preset in HomeKit). With buttons, each preset gets its own tile - tap to power on + play. Siri: "Hey Siri, turn on SunshineLive Kitchen"
+- **Auto-Resume** - Konfigurierbares automatisches Abspielen des letzten Presets beim Einschalten. Pro Gerät in den Einstellungen aktivierbar.
+- **Preset-Buttons** - Neue Option `presetDisplay`: Wahl zwischen `menu` (Dropdown, Standard) oder `buttons` (einzelne Schalter pro Preset in HomeKit). Siri: "Hey Siri, schalte SunshineLive Küche ein"
+
+## v1.15.9
+- **Bass as Fan service** - Bass uses Fan service instead of Lightbulb to prevent HomeKit from showing Bass as main volume slider in Control Center
+
 ## v1.15.7
 - **Input source ordering fixed** - DisplayOrder TLV8 characteristic forces correct order in HomeKit: presets by slot, then AUX, then Bluetooth
 - **Service tile ordering** - ServiceLabelIndex on Volume (1) and Bass (2) ensures correct tile order in Home app

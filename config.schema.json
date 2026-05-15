@@ -78,6 +78,22 @@
               ],
               "description": "Icon für dieses Gerät in der Home App"
             },
+            "autoResume": {
+              "title": "Auto-Resume",
+              "type": "boolean",
+              "default": false,
+              "description": "Letztes Preset automatisch abspielen beim Einschalten / Resume last preset on power on"
+            },
+            "presetDisplay": {
+              "title": "Preset-Anzeige / Preset Display",
+              "type": "string",
+              "default": "menu",
+              "oneOf": [
+                { "title": "Menü / Menu (Dropdown)", "enum": ["menu"] },
+                { "title": "Einzelne Buttons / Separate Buttons", "enum": ["buttons"] }
+              ],
+              "description": "Presets als Dropdown-Menü oder einzelne Schalter in HomeKit / Show presets as dropdown menu or separate switches"
+            },
             "presets": {
               "title": "Preset-Belegung",
               "description": "Belege die 6 Preset-Tasten mit eigenen Sendern",
@@ -199,6 +215,20 @@
                 },
                 {
                   "key": "devices[].deviceIcon",
+                  "flex": "1 1 150px"
+                }
+              ]
+            },
+            {
+              "type": "div",
+              "displayFlex": true,
+              "items": [
+                {
+                  "key": "devices[].autoResume",
+                  "flex": "1 1 150px"
+                },
+                {
+                  "key": "devices[].presetDisplay",
                   "flex": "1 1 150px"
                 }
               ]

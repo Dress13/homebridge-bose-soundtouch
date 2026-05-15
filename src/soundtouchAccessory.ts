@@ -35,8 +35,11 @@ export class SoundTouchAccessory {
   private isGrouped = false;
   private currentInputIndex = 0;
   private currentPlayStatus = '';
+  private lastActivePresetSlot = 0;
   // Maps sequential HomeKit Identifier → internal action type + slot
   private inputMap: Array<{ type: 'preset' | 'aux' | 'bluetooth'; slot: number }> = [];
+  private presetSwitchServices: Service[] = [];
+  private presetSwitchSlots: number[] = [];
 
   constructor(
     private readonly platform: SoundTouchPlatform,
@@ -347,26 +350,34 @@ export class SoundTouchAccessory {
     this.inputMap = [];
     let identifier = 1;
 
-    // Add configured presets in slot order (1-6)
-    for (let i = 1; i <= 6; i++) {
-      const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
-      if (!configPreset || !configPreset.name) {
-        continue;
-      }
+    const useButtons = this.deviceConfig.presetDisplay === 'buttons';
 
-      this.addInputSource(configPreset.name, `preset-${i}`, identifier, 'APPLICATION');
-      this.inputMap.push({ type: 'preset', slot: i });
-      identifier++;
+    if (!useButtons) {
+      // Menu mode: add configured presets as InputSources
+      for (let i = 1; i <= 6; i++) {
+        const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
+        if (!configPreset || !configPreset.name) {
+          continue;
+        }
+
+        this.addInputSource(configPreset.name, `preset-${i}`, identifier, 'APPLICATION');
+        this.inputMap.push({ type: 'preset', slot: i });
+        identifier++;
+      }
     }
 
-    // Add AUX (always after presets)
+    // AUX and Bluetooth always as InputSources
     this.addInputSource('AUX Eingang', 'aux', identifier, 'OTHER');
     this.inputMap.push({ type: 'aux', slot: 0 });
     identifier++;
 
-    // Add Bluetooth (always last)
     this.addInputSource('Bluetooth', 'bluetooth', identifier, 'OTHER');
     this.inputMap.push({ type: 'bluetooth', slot: 0 });
+
+    if (useButtons) {
+      // Button mode: create separate Switch per preset
+      this.setupPresetButtons();
+    }
 
     // Set DisplayOrder TLV8 to force correct ordering in HomeKit
     const totalInputs = this.inputServices.length;
@@ -422,6 +433,76 @@ export class SoundTouchAccessory {
 
     this.televisionService.addLinkedService(inputService);
     this.inputServices.push(inputService);
+  }
+
+  private setupPresetButtons(): void {
+    this.presetSwitchServices = [];
+    this.presetSwitchSlots = [];
+
+    for (let i = 1; i <= 6; i++) {
+      const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
+      if (!configPreset || !configPreset.name) {
+        continue;
+      }
+
+      const switchService = this.accessory.addService(
+        this.platform.Service.Switch,
+        configPreset.name,
+        `preset-button-${i}`,
+      );
+
+      switchService
+        .setCharacteristic(this.platform.Characteristic.Name, configPreset.name)
+        .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+        .setValue(configPreset.name);
+
+      const slot = i;
+      switchService.getCharacteristic(this.platform.Characteristic.On)
+        .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === slot)
+        .onSet(async (value: CharacteristicValue) => {
+          if (value) {
+            // Power on + play preset
+            if (!this.isPoweredOn) {
+              await this.client.powerOn();
+              this.isPoweredOn = true;
+              this.updatePowerState();
+              await new Promise(r => setTimeout(r, 1500));
+            }
+            const preset = this.deviceConfig.presets?.find(p => p.slot === slot);
+            if (preset) {
+              await this.playConfiguredPreset(preset);
+              this.lastActivePresetSlot = slot;
+              this.platform.log.info(
+                `${this.accessory.displayName} preset button: ${preset.name}`,
+              );
+            }
+          } else {
+            // Power off
+            await this.client.powerOff();
+            this.isPoweredOn = false;
+            this.updatePowerState();
+            this.lastActivePresetSlot = 0;
+          }
+          this.updatePresetSwitchStates();
+        });
+
+      this.presetSwitchServices.push(switchService);
+      this.presetSwitchSlots.push(i);
+    }
+
+    this.platform.log.info(
+      `Setup ${this.presetSwitchServices.length} preset buttons for ${this.accessory.displayName}`,
+    );
+  }
+
+  private updatePresetSwitchStates(): void {
+    for (let i = 0; i < this.presetSwitchServices.length; i++) {
+      const isActive = this.isPoweredOn
+        && this.lastActivePresetSlot === this.presetSwitchSlots[i];
+      this.presetSwitchServices[i].updateCharacteristic(
+        this.platform.Characteristic.On, isActive,
+      );
+    }
   }
 
   private setupGroupSwitch(): void {
@@ -537,6 +618,7 @@ export class SoundTouchAccessory {
           );
           if (configPreset && configPreset.name) {
             await this.playConfiguredPreset(configPreset);
+            this.lastActivePresetSlot = mapping.slot;
             this.platform.log.info(
               `${this.accessory.displayName} selected Preset ${mapping.slot}: ${configPreset.name}`,
             );
@@ -545,10 +627,12 @@ export class SoundTouchAccessory {
         }
         case 'aux':
           await this.client.selectAux();
+          this.lastActivePresetSlot = 0;
           this.platform.log.info(`${this.accessory.displayName} selected AUX`);
           break;
         case 'bluetooth':
           await this.client.selectBluetooth();
+          this.lastActivePresetSlot = 0;
           this.platform.log.info(
             `${this.accessory.displayName} selected Bluetooth`,
           );
@@ -559,6 +643,7 @@ export class SoundTouchAccessory {
         this.isPoweredOn = true;
         this.updatePowerState();
       }
+      this.updatePresetSwitchStates();
     } catch (error) {
       this.platform.log.error('Failed to set active input:', error);
       throw new this.platform.api.hap.HapStatusError(
@@ -750,6 +835,9 @@ export class SoundTouchAccessory {
       this.isPoweredOn = data.source !== 'STANDBY';
 
       this.updatePowerState();
+      if (!this.isPoweredOn && wasOn) {
+        this.updatePresetSwitchStates();
+      }
 
       if (wasOn !== this.isPoweredOn) {
         this.platform.log.info(`${this.accessory.displayName} Power: ${this.isPoweredOn ? 'ON' : 'OFF'}`);
@@ -865,12 +953,14 @@ export class SoundTouchAccessory {
       );
       // Update HomeKit state
       this.isPoweredOn = true;
+      this.lastActivePresetSlot = presetId;
       this.updatePowerState();
       this.currentInputIndex = presetId;
       this.televisionService.updateCharacteristic(
         this.platform.Characteristic.ActiveIdentifier,
         presetId,
       );
+      this.updatePresetSwitchStates();
     } catch (error) {
       this.platform.log.error(
         `${this.accessory.displayName} failed to play preset ${presetId}:`, error,
@@ -930,10 +1020,31 @@ export class SoundTouchAccessory {
         await this.client.powerOn();
         this.isPoweredOn = true;
         this.platform.log.info(`${this.accessory.displayName} Power ON`);
+
+        // Auto-resume last preset if configured
+        if (this.deviceConfig.autoResume && this.lastActivePresetSlot > 0) {
+          const preset = this.deviceConfig.presets?.find(
+            p => p.slot === this.lastActivePresetSlot,
+          );
+          if (preset) {
+            setTimeout(async () => {
+              try {
+                await this.playConfiguredPreset(preset);
+                this.platform.log.info(
+                  `${this.accessory.displayName} auto-resumed: ${preset.name}`,
+                );
+              } catch (err) {
+                this.platform.log.error('Auto-resume failed:', err);
+              }
+              this.updatePresetSwitchStates();
+            }, 2000);
+          }
+        }
       } else if (!shouldBeOn && this.isPoweredOn) {
         await this.client.powerOff();
         this.isPoweredOn = false;
         this.platform.log.info(`${this.accessory.displayName} Power OFF`);
+        this.updatePresetSwitchStates();
       }
     } catch (error) {
       this.platform.log.error('Failed to set power state:', error);
