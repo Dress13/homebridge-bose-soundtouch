@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.16.7
+- **Custom service names** - Volume, Bass, AUX and Bluetooth names are now configurable per device. HomeKit sorts tiles alphabetically by name, so renaming allows controlling the tile order (e.g. rename "Bass" to "Tiefen" to move it below "Lautstärke").
+- **Konfigurierbare Namen** - Lautstärke, Bass, AUX und Bluetooth Namen pro Gerät einstellbar. HomeKit sortiert alphabetisch nach Name - so lässt sich die Kachel-Reihenfolge steuern.
+
+## v1.16.5
+- **Periodic mDNS re-scan** - Every 5 minutes the plugin actively scans for SoundTouch devices. Catches devices that come online after plugin start with changed IPs.
+- **Periodischer mDNS Re-Scan** - Alle 5 Minuten aktiver Scan nach Geräten. Erkennt Boxen die nach dem Start online kommen.
+
+## v1.16.4
+- **Buttons mode: AUX + Bluetooth** - In buttons mode, AUX and Bluetooth are also separate switches (not just presets).
+
 ## v1.16.0
 - **Auto-Resume** - Configurable option to automatically resume the last active preset when the speaker is powered on. Enable per device in settings.
 - **Preset Buttons** - New `presetDisplay` option: choose between `menu` (dropdown, default) or `buttons` (separate switch per preset in HomeKit). With buttons, each preset gets its own tile - tap to power on + play. Siri: "Hey Siri, turn on SunshineLive Kitchen"
