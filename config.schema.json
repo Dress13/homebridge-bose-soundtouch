@@ -220,23 +220,16 @@
               ]
             },
             {
-              "type": "fieldset",
-              "title": "Erweiterte Einstellungen / Advanced Settings",
-              "expandable": true,
+              "type": "div",
+              "displayFlex": true,
               "items": [
                 {
-                  "type": "div",
-                  "displayFlex": true,
-                  "items": [
-                    {
-                      "key": "devices[].autoResume",
-                      "flex": "1 1 200px"
-                    },
-                    {
-                      "key": "devices[].presetDisplay",
-                      "flex": "1 1 200px"
-                    }
-                  ]
+                  "key": "devices[].autoResume",
+                  "flex": "1 1 200px"
+                },
+                {
+                  "key": "devices[].presetDisplay",
+                  "flex": "1 1 200px"
                 }
               ]
             },
