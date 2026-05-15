@@ -106,6 +106,18 @@
               "placeholder": "Bass",
               "description": "Name des Bass-Sliders in HomeKit (sortiert alphabetisch!) / Bass slider name in HomeKit (sorted alphabetically!)"
             },
+            "auxName": {
+              "title": "AUX Name",
+              "type": "string",
+              "placeholder": "AUX Eingang",
+              "description": "Name des AUX-Eingangs in HomeKit / AUX input name in HomeKit"
+            },
+            "bluetoothName": {
+              "title": "Bluetooth Name",
+              "type": "string",
+              "placeholder": "Bluetooth",
+              "description": "Name des Bluetooth-Eingangs in HomeKit / Bluetooth input name in HomeKit"
+            },
             "presets": {
               "title": "Preset-Belegung",
               "description": "Belege die 6 Preset-Tasten mit eigenen Sendern",

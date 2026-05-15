@@ -514,6 +514,17 @@
             </div>
           </div>
 
+          <div class="form-row" style="margin-bottom: 15px;">
+            <div class="form-group" style="flex: 1 1 200px;">
+              <label>AUX Name</label>
+              <input type="text" value="${device.auxName || ''}" onchange="updateDevice(${i}, 'auxName', this.value)" placeholder="AUX Eingang">
+            </div>
+            <div class="form-group" style="flex: 1 1 200px;">
+              <label>Bluetooth Name</label>
+              <input type="text" value="${device.bluetoothName || ''}" onchange="updateDevice(${i}, 'bluetoothName', this.value)" placeholder="Bluetooth">
+            </div>
+          </div>
+
           <div class="presets-section">
             <h4>Preset-Tasten belegen</h4>
             <small style="display: block; margin-bottom: 15px; color: #6c757d;">

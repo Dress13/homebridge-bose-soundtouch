@@ -39,6 +39,8 @@ export interface DeviceConfig {
   presetDisplay?: 'menu' | 'buttons'; // How presets are shown in HomeKit
   volumeName?: string;       // Custom name for volume slider (default: Lautstärke)
   bassName?: string;         // Custom name for bass slider (default: Bass)
+  auxName?: string;          // Custom name for AUX input (default: AUX Eingang)
+  bluetoothName?: string;    // Custom name for Bluetooth input (default: Bluetooth)
 }
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {

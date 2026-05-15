@@ -351,6 +351,8 @@ export class SoundTouchAccessory {
     let identifier = 1;
 
     const useButtons = this.deviceConfig.presetDisplay === 'buttons';
+    const auxName = this.deviceConfig.auxName || 'AUX Eingang';
+    const btName = this.deviceConfig.bluetoothName || 'Bluetooth';
 
     if (!useButtons) {
       // Menu mode: add configured presets as InputSources
@@ -368,11 +370,11 @@ export class SoundTouchAccessory {
 
     if (!useButtons) {
       // Menu mode: AUX and Bluetooth as InputSources
-      this.addInputSource('AUX Eingang', 'aux', identifier, 'OTHER');
+      this.addInputSource(auxName, 'aux', identifier, 'OTHER');
       this.inputMap.push({ type: 'aux', slot: 0 });
       identifier++;
 
-      this.addInputSource('Bluetooth', 'bluetooth', identifier, 'OTHER');
+      this.addInputSource(btName, 'bluetooth', identifier, 'OTHER');
       this.inputMap.push({ type: 'bluetooth', slot: 0 });
     } else {
       // Button mode: separate Switches for everything
@@ -492,11 +494,13 @@ export class SoundTouchAccessory {
 
     // AUX button (slot -1)
     const auxSwitch = this.accessory.addService(
-      this.platform.Service.Switch, 'AUX Eingang', 'aux-button',
+      this.platform.Service.Switch,
+      this.deviceConfig.auxName || 'AUX Eingang', 'aux-button',
     );
-    auxSwitch.setCharacteristic(this.platform.Characteristic.Name, 'AUX Eingang')
+    const auxLabel = this.deviceConfig.auxName || 'AUX Eingang';
+    auxSwitch.setCharacteristic(this.platform.Characteristic.Name, auxLabel)
       .addCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .setValue('AUX Eingang');
+      .setValue(auxLabel);
     auxSwitch.getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -1)
       .onSet(async (value: CharacteristicValue) => {
@@ -521,11 +525,13 @@ export class SoundTouchAccessory {
 
     // Bluetooth button (slot -2)
     const btSwitch = this.accessory.addService(
-      this.platform.Service.Switch, 'Bluetooth', 'bluetooth-button',
+      this.platform.Service.Switch,
+      this.deviceConfig.bluetoothName || 'Bluetooth', 'bluetooth-button',
     );
-    btSwitch.setCharacteristic(this.platform.Characteristic.Name, 'Bluetooth')
+    const btLabel = this.deviceConfig.bluetoothName || 'Bluetooth';
+    btSwitch.setCharacteristic(this.platform.Characteristic.Name, btLabel)
       .addCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .setValue('Bluetooth');
+      .setValue(btLabel);
     btSwitch.getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -2)
       .onSet(async (value: CharacteristicValue) => {
