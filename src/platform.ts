@@ -53,6 +53,8 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   private readonly soundTouchAccessories: Map<string, SoundTouchAccessory> = new Map();
   private readonly externalAccessories: Map<string, PlatformAccessory> = new Map();
   private discovery?: SoundTouchDiscovery;
+  private rescanInterval?: ReturnType<typeof setInterval>;
+  private static readonly RESCAN_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     public readonly log: Logger,
@@ -241,6 +243,56 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     for (const { config, mac } of devicesToRegister.values()) {
       this.registerDevice(config, mac);
     }
+
+    // Periodic re-scan to catch devices that come online later with new IPs
+    this.rescanInterval = setInterval(() => this.rescanDevices(), SoundTouchPlatform.RESCAN_INTERVAL);
+  }
+
+  private async rescanDevices(): Promise<void> {
+    try {
+      const scanner = new SoundTouchDiscovery();
+      const discovered = await scanner.discoverOnce(
+        this.config.discoveryTimeout || 10000,
+      );
+
+      for (const device of discovered) {
+        let mac = device.mac?.toUpperCase();
+        if (!mac) {
+          continue;
+        }
+
+        // Try API to get accurate MAC
+        try {
+          const client = new SoundTouchClient(device.host, 8090, 3000);
+          const info = await client.getInfo();
+          mac = info.macAddress?.toUpperCase() || mac;
+        } catch {
+          // Use mDNS MAC
+        }
+
+        const existing = this.findAccessoryByMac(mac);
+        if (existing && existing.getHost() !== device.host) {
+          const oldHost = existing.getHost();
+          this.log.info(
+            `Rescan: IP changed for ${device.name}: ${oldHost} -> ${device.host}`,
+          );
+          existing.updateHost(device.host);
+          this.soundTouchAccessories.delete(oldHost);
+          this.soundTouchAccessories.set(device.host, existing);
+          const oldAccessory = this.externalAccessories.get(oldHost);
+          if (oldAccessory) {
+            this.externalAccessories.delete(oldHost);
+            this.externalAccessories.set(device.host, oldAccessory);
+          }
+          // Save updated IP to config
+          this.saveConfigUpdates(new Map([[mac, {
+            newHost: device.host, mac,
+          }]]));
+        }
+      }
+    } catch {
+      // Ignore rescan errors
+    }
   }
 
   private saveConfigUpdates(
@@ -316,6 +368,9 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   }
 
   private cleanup(): void {
+    if (this.rescanInterval) {
+      clearInterval(this.rescanInterval);
+    }
     if (this.discovery) {
       this.discovery.stop();
     }
