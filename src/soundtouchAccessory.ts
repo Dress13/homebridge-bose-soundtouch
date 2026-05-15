@@ -217,7 +217,7 @@ export class SoundTouchAccessory {
 
   private setupVolumeLightbulb(): void {
     // Create Lightbulb service for volume control with slider
-    const volumeName = 'Lautstärke';
+    const volumeName = this.deviceConfig.volumeName || 'Lautstärke';
     this.volumeLightbulbService = this.accessory.addService(
       this.platform.Service.Lightbulb,
       volumeName,
@@ -283,7 +283,7 @@ export class SoundTouchAccessory {
       const bass = await this.client.getBass();
       this.currentBass = bass.actualbass;
 
-      const bassName = 'Bass';
+      const bassName = this.deviceConfig.bassName || 'Bass';
       this.bassLightbulbService = this.accessory.addService(
         this.platform.Service.Fan,
         bassName,

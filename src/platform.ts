@@ -37,6 +37,8 @@ export interface DeviceConfig {
   presets?: PresetConfig[];  // Device-specific preset configuration
   autoResume?: boolean;      // Resume last preset on power on
   presetDisplay?: 'menu' | 'buttons'; // How presets are shown in HomeKit
+  volumeName?: string;       // Custom name for volume slider (default: Lautstärke)
+  bassName?: string;         // Custom name for bass slider (default: Bass)
 }
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {

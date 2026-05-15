@@ -501,6 +501,19 @@
             </div>
           </div>
 
+          <div class="form-row" style="margin-bottom: 15px;">
+            <div class="form-group" style="flex: 1 1 200px;">
+              <label>Volume Name</label>
+              <input type="text" value="${device.volumeName || ''}" onchange="updateDevice(${i}, 'volumeName', this.value)" placeholder="Lautstärke">
+              <small style="color: #6c757d;">HomeKit sortiert alphabetisch! / HomeKit sorts alphabetically!</small>
+            </div>
+            <div class="form-group" style="flex: 1 1 200px;">
+              <label>Bass Name</label>
+              <input type="text" value="${device.bassName || ''}" onchange="updateDevice(${i}, 'bassName', this.value)" placeholder="Bass">
+              <small style="color: #6c757d;">HomeKit sortiert alphabetisch! / HomeKit sorts alphabetically!</small>
+            </div>
+          </div>
+
           <div class="presets-section">
             <h4>Preset-Tasten belegen</h4>
             <small style="display: block; margin-bottom: 15px; color: #6c757d;">

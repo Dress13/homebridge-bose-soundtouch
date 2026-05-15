@@ -94,6 +94,18 @@
               ],
               "description": "Presets als Dropdown-Menü oder einzelne Schalter in HomeKit / Show presets as dropdown menu or separate switches"
             },
+            "volumeName": {
+              "title": "Volume Name",
+              "type": "string",
+              "placeholder": "Lautstärke",
+              "description": "Name des Lautstärke-Sliders in HomeKit (sortiert alphabetisch!) / Volume slider name in HomeKit (sorted alphabetically!)"
+            },
+            "bassName": {
+              "title": "Bass Name",
+              "type": "string",
+              "placeholder": "Bass",
+              "description": "Name des Bass-Sliders in HomeKit (sortiert alphabetisch!) / Bass slider name in HomeKit (sorted alphabetically!)"
+            },
             "presets": {
               "title": "Preset-Belegung",
               "description": "Belege die 6 Preset-Tasten mit eigenen Sendern",
