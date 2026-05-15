@@ -484,6 +484,23 @@
             </div>
           </div>
 
+          <div class="form-row" style="margin-bottom: 15px;">
+            <div class="form-group" style="flex: 1 1 200px;">
+              <label>Auto-Resume</label>
+              <select onchange="updateDevice(${i}, 'autoResume', this.value === 'true')">
+                <option value="false" ${!device.autoResume ? 'selected' : ''}>Aus / Off</option>
+                <option value="true" ${device.autoResume ? 'selected' : ''}>Ein / On - Letztes Preset beim Einschalten</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1 1 200px;">
+              <label>Preset-Anzeige / Preset Display</label>
+              <select onchange="updateDevice(${i}, 'presetDisplay', this.value)">
+                <option value="menu" ${!device.presetDisplay || device.presetDisplay === 'menu' ? 'selected' : ''}>Menü / Menu (Dropdown)</option>
+                <option value="buttons" ${device.presetDisplay === 'buttons' ? 'selected' : ''}>Einzelne Buttons / Separate Buttons</option>
+              </select>
+            </div>
+          </div>
+
           <div class="presets-section">
             <h4>Preset-Tasten belegen</h4>
             <small style="display: block; margin-bottom: 15px; color: #6c757d;">
