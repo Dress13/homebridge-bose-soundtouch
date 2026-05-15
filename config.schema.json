@@ -106,6 +106,12 @@
               "placeholder": "Bass",
               "description": "Name des Bass-Sliders in HomeKit (sortiert alphabetisch!) / Bass slider name in HomeKit (sorted alphabetically!)"
             },
+            "multiRoomName": {
+              "title": "Multi-Room Name",
+              "type": "string",
+              "placeholder": "Multi-Room",
+              "description": "Name des Multi-Room Schalters in HomeKit / Multi-Room switch name in HomeKit"
+            },
             "auxName": {
               "title": "AUX Name",
               "type": "string",

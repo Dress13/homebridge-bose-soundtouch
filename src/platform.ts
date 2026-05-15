@@ -41,6 +41,7 @@ export interface DeviceConfig {
   bassName?: string;         // Custom name for bass slider (default: Bass)
   auxName?: string;          // Custom name for AUX input (default: AUX Eingang)
   bluetoothName?: string;    // Custom name for Bluetooth input (default: Bluetooth)
+  multiRoomName?: string;    // Custom name for Multi-Room switch (default: Multi-Room)
 }
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {

@@ -572,7 +572,8 @@ export class SoundTouchAccessory {
   private setupGroupSwitch(): void {
     const displayName = this.deviceConfig.name || this.accessory.displayName;
 
-    const groupName = displayName + ' Multi-Room';
+    const mrLabel = this.deviceConfig.multiRoomName || 'Multi-Room';
+    const groupName = displayName + ' ' + mrLabel;
     this.groupSwitchService = this.accessory.addService(
       this.platform.Service.Switch,
       groupName,
