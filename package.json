@@ -1,6 +1,6 @@
 {
   "name": "homebridge-bose-soundtouch",
-  "version": "1.16.8",
+  "version": "1.16.9",
   "description": "Homebridge plugin for Bose SoundTouch speakers with custom radio stations and streaming support",
   "main": "dist/index.js",
   "scripts": {
