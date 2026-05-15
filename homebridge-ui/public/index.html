@@ -298,9 +298,9 @@
     <div class="scan-section">
       <button id="scanBtn" class="btn btn-primary" onclick="startScan()">
         <span class="spinner"></span>
-        <span class="btn-text">Netzwerk scannen</span>
+        <span class="btn-text">Scan Network</span>
       </button>
-      <span style="color: #6c757d; font-size: 14px;">Findet alle SoundTouch-Geräte im Netzwerk</span>
+      <span style="color: #6c757d; font-size: 14px;">Finds all SoundTouch devices on your network</span>
     </div>
     <div id="statusMsg" class="status-msg"></div>
     <div id="discoveredList" class="discovered-list"></div>
@@ -308,23 +308,23 @@
 
   <!-- Global Settings -->
   <div class="section">
-    <h4>Globale Einstellungen</h4>
+    <h4>Global Settings</h4>
     <div class="form-group">
       <label>
-        <input type="checkbox" id="autoDiscover" onchange="saveConfig()"> Automatische Erkennung beim Start
+        <input type="checkbox" id="autoDiscover" onchange="saveConfig()"> Auto Discovery on Start
       </label>
-      <small>Geräte werden automatisch gefunden, auch ohne manuelle Konfiguration</small>
+      <small>Devices are discovered automatically, even without manual configuration</small>
     </div>
   </div>
 
   <!-- Devices Section -->
   <div class="section">
-    <h3>Geräte</h3>
+    <h3>Devices</h3>
     <div id="deviceTabs" class="tabs"></div>
     <div id="deviceContents"></div>
     <div id="noDevices" class="no-devices" style="display: none;">
-      <p>Keine Geräte konfiguriert.</p>
-      <p>Klicke auf "Netzwerk scannen" um Geräte zu finden.</p>
+      <p>No devices configured.</p>
+      <p>Click "Scan Network" to find devices.</p>
     </div>
   </div>
 
@@ -332,22 +332,22 @@
   <div id="nasBrowserModal" class="modal-overlay" onclick="if(event.target===this)closeNasBrowser()">
     <div class="modal">
       <div class="modal-header">
-        <h3>NAS/DLNA durchsuchen</h3>
+        <h3>Browse NAS/DLNA</h3>
         <button class="modal-close" onclick="closeNasBrowser()">&times;</button>
       </div>
       <div class="modal-body">
         <div id="nasServerSelect" class="form-group">
-          <label>Media Server auswählen</label>
+          <label>Select Media Server</label>
           <select id="nasServerDropdown" onchange="onServerSelect(this.value)">
-            <option value="">-- Server laden --</option>
+            <option value="">-- Loading servers --</option>
           </select>
         </div>
         <div id="nasBreadcrumb" class="nas-breadcrumb"></div>
         <div id="nasContent"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeNasBrowser()">Abbrechen</button>
-        <button id="nasSelectBtn" class="btn btn-success" onclick="selectNasItem()" disabled>Auswählen</button>
+        <button class="btn" onclick="closeNasBrowser()">Cancel</button>
+        <button id="nasSelectBtn" class="btn btn-success" onclick="selectNasItem()" disabled>Select</button>
       </div>
     </div>
   </div>
@@ -399,9 +399,9 @@
       try {
         await homebridge.updatePluginConfig([config]);
         await homebridge.savePluginConfig();
-        showStatus('Konfiguration gespeichert!', 'success');
+        showStatus('Configuration saved!', 'success');
       } catch (e) {
-        showStatus('Fehler beim Speichern: ' + e.message, 'error');
+        showStatus('Error saving:' + e.message, 'error');
       }
     }
 
@@ -434,41 +434,41 @@
         <div class="tab-content ${i === activeTab ? 'active' : ''}" id="device-${i}">
           <div class="device-header">
             <div>
-              <div class="device-title">${device.name || 'Unbenannt'}</div>
+              <div class="device-title">${device.name || 'Unnamed'}</div>
               <div class="device-ip">${device.host}</div>
             </div>
             ${pendingRemoveDevice === i ? `
               <div style="display: flex; gap: 8px; align-items: center;">
-                <span style="color: #dc3545; font-size: 14px;">Wirklich entfernen?</span>
-                <button class="btn btn-danger" onclick="confirmRemoveDevice()">Ja</button>
-                <button class="btn" onclick="cancelRemoveDevice()">Nein</button>
+                <span style="color: #dc3545; font-size: 14px;">Really remove?</span>
+                <button class="btn btn-danger" onclick="confirmRemoveDevice()">Yes</button>
+                <button class="btn" onclick="cancelRemoveDevice()">No</button>
               </div>
             ` : `
-              <button class="btn btn-danger" onclick="removeDevice(${i})">Gerät entfernen</button>
+              <button class="btn btn-danger" onclick="removeDevice(${i})">Remove Device</button>
             `}
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>IP-Adresse</label>
+              <label>IP Address</label>
               <input type="text" value="${device.host || ''}" onchange="updateDevice(${i}, 'host', this.value)">
             </div>
             <div class="form-group">
               <label>Name</label>
-              <input type="text" value="${device.name || ''}" onchange="updateDevice(${i}, 'name', this.value)" placeholder="Automatisch vom Gerät">
+              <input type="text" value="${device.name || ''}" onchange="updateDevice(${i}, 'name', this.value)" placeholder="Auto from device">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>Raum</label>
+              <label>Room</label>
               <input type="text" value="${device.room || ''}" onchange="updateDevice(${i}, 'room', this.value)" placeholder="Optional">
             </div>
             <div class="form-group">
-              <label>Geräte-Icon</label>
+              <label>Device Icon</label>
               <select onchange="updateDevice(${i}, 'deviceIcon', parseInt(this.value))">
                 <option value="34" ${device.deviceIcon === 34 || !device.deviceIcon ? 'selected' : ''}>Audio Receiver</option>
-                <option value="26" ${device.deviceIcon === 26 ? 'selected' : ''}>Speaker (Lautsprecher)</option>
+                <option value="26" ${device.deviceIcon === 26 ? 'selected' : ''}>Speaker</option>
                 <option value="31" ${device.deviceIcon === 31 ? 'selected' : ''}>Television (TV)</option>
                 <option value="35" ${device.deviceIcon === 35 ? 'selected' : ''}>TV Set Top Box</option>
                 <option value="36" ${device.deviceIcon === 36 ? 'selected' : ''}>TV Streaming Stick</option>
@@ -488,26 +488,26 @@
             <div class="form-group" style="flex: 1 1 200px;">
               <label>Auto-Resume</label>
               <select onchange="updateDevice(${i}, 'autoResume', this.value === 'true')">
-                <option value="false" ${!device.autoResume ? 'selected' : ''}>Aus / Off</option>
-                <option value="true" ${device.autoResume ? 'selected' : ''}>Ein / On - Letztes Preset beim Einschalten</option>
+                <option value="false" ${!device.autoResume ? 'selected' : ''}>Off</option>
+                <option value="true" ${device.autoResume ? 'selected' : ''}>On - Resume last preset on power on</option>
               </select>
             </div>
             <div class="form-group" style="flex: 1 1 200px;">
-              <label>Preset-Anzeige / Preset Display</label>
+              <label>Preset Display</label>
               <select onchange="updateDevice(${i}, 'presetDisplay', this.value)">
-                <option value="menu" ${!device.presetDisplay || device.presetDisplay === 'menu' ? 'selected' : ''}>Menü / Menu (Dropdown)</option>
-                <option value="buttons" ${device.presetDisplay === 'buttons' ? 'selected' : ''}>Einzelne Buttons / Separate Buttons</option>
+                <option value="menu" ${!device.presetDisplay || device.presetDisplay === 'menu' ? 'selected' : ''}>Menu (Dropdown)</option>
+                <option value="buttons" ${device.presetDisplay === 'buttons' ? 'selected' : ''}>Separate Buttons</option>
               </select>
             </div>
           </div>
 
           <small style="display: block; margin-bottom: 10px; color: #6c757d;">
-            HomeKit sortiert Kacheln alphabetisch nach Name! / HomeKit sorts tiles alphabetically by name!
+            HomeKit sorts tiles alphabetically by name!
           </small>
           <div class="form-row" style="margin-bottom: 15px;">
             <div class="form-group" style="flex: 1 1 150px;">
               <label>Volume Name</label>
-              <input type="text" value="${device.volumeName || ''}" onchange="updateDevice(${i}, 'volumeName', this.value)" placeholder="Lautstärke">
+              <input type="text" value="${device.volumeName || ''}" onchange="updateDevice(${i}, 'volumeName', this.value)" placeholder="Volume">
             </div>
             <div class="form-group" style="flex: 1 1 150px;">
               <label>Bass Name</label>
@@ -531,16 +531,16 @@
           </div>
 
           <div class="presets-section">
-            <h4>Preset-Tasten belegen</h4>
+            <h4>Configure Presets</h4>
             <small style="display: block; margin-bottom: 15px; color: #6c757d;">
-              Hier kannst du eigene Radiosender oder Streaming-Inhalte auf die Preset-Tasten 1-6 legen.
-              Diese werden nach dem TuneIn-Ende (Mai 2026) weiterhin funktionieren.
+              Assign radio stations or streaming content to preset buttons 1-6.
+              These work locally via DLNA after the Bose cloud shutdown.
             </small>
             <div id="presets-${i}">
               ${renderPresets(device, i)}
             </div>
             <button class="btn btn-success" onclick="addPreset(${i})" style="margin-top: 10px;">
-              + Preset hinzufügen
+              + Add Preset
             </button>
           </div>
         </div>
@@ -549,28 +549,28 @@
 
     function renderPresets(device, deviceIndex) {
       if (!device.presets || device.presets.length === 0) {
-        return '<p style="color: #6c757d; font-style: italic;">Keine Presets konfiguriert. Die vorhandenen Presets vom Gerät werden verwendet.</p>';
+        return '<p style="color: #6c757d; font-style: italic;">No presets configured.</p>';
       }
 
       return device.presets.map((preset, pi) => `
         <div class="preset-item">
           <div class="preset-header">
-            <span class="preset-title">Preset ${preset.slot || '?'}: ${preset.name || 'Unbenannt'}</span>
+            <span class="preset-title">Preset ${preset.slot || '?'}: ${preset.name || 'Unnamed'}</span>
             <button class="preset-remove" onclick="removePreset(${deviceIndex}, ${pi})">×</button>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Taste (1-6)</label>
+              <label>Button (1-6)</label>
               <select onchange="updatePreset(${deviceIndex}, ${pi}, 'slot', parseInt(this.value))">
                 ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${preset.slot === n ? 'selected' : ''}>${n}</option>`).join('')}
               </select>
             </div>
             <div class="form-group">
               <label>Name</label>
-              <input type="text" value="${preset.name || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'name', this.value)" placeholder="z.B. SWR3">
+              <input type="text" value="${preset.name || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'name', this.value)" placeholder="e.g. SWR3">
             </div>
             <div class="form-group">
-              <label>Typ</label>
+              <label>Type</label>
               <select onchange="updatePreset(${deviceIndex}, ${pi}, 'type', this.value)">
                 <option value="radio" ${preset.type === 'radio' ? 'selected' : ''}>Internet Radio (HTTP)</option>
                 <option value="spotify" ${preset.type === 'spotify' ? 'selected' : ''}>Spotify</option>
@@ -606,12 +606,12 @@
           ` : ''}
           ${preset.type === 'nas' ? `
             <div class="form-group">
-              <label>NAS Ordner/Album</label>
+              <label>NAS Folder/Album</label>
               <div style="display: flex; gap: 10px;">
-                <input type="text" value="${preset.nasLocation ? (preset.name || 'Ausgewählt') : ''}" readonly placeholder="Noch nicht ausgewählt" style="flex: 1; background: #f8f9fa;">
-                <button class="btn btn-primary" onclick="openNasBrowser(${deviceIndex}, ${pi})">Durchsuchen</button>
+                <input type="text" value="${preset.nasLocation ? (preset.name || 'Selected') : ''}" readonly placeholder="Not selected yet" style="flex: 1; background: #f8f9fa;">
+                <button class="btn btn-primary" onclick="openNasBrowser(${deviceIndex}, ${pi})">Browse</button>
               </div>
-              <small>Server: ${preset.nasServer || 'Nicht gesetzt'}</small>
+              <small>Server: ${preset.nasServer || 'Not set'}</small>
             </div>
           ` : ''}
         </div>
@@ -644,7 +644,7 @@
         pendingRemoveDevice = null;
         saveConfig();
         render();
-        showStatus('Gerät entfernt!', 'success');
+        showStatus('Device removed!', 'success');
       }
     }
 
@@ -686,7 +686,7 @@
       btn.disabled = true;
       btn.querySelector('.btn-text').textContent = 'Scanne...';
 
-      showStatus('Suche SoundTouch-Geräte im Netzwerk... (ca. 10 Sekunden)', 'info');
+      showStatus('Scanning for SoundTouch devices... (approx. 10 seconds)', 'info');
       document.getElementById('discoveredList').innerHTML = '';
 
       try {
@@ -695,21 +695,21 @@
 
         btn.classList.remove('loading');
         btn.disabled = false;
-        btn.querySelector('.btn-text').textContent = 'Netzwerk scannen';
+        btn.querySelector('.btn-text').textContent = 'Scan Network';
 
         if (discoveredDevices.length === 0) {
-          showStatus('Keine Geräte gefunden. Stelle sicher, dass die Geräte eingeschaltet sind.', 'error');
+          showStatus('No devices found. Make sure your SoundTouch speakers are powered on.', 'error');
           return;
         }
 
-        showStatus(`${discoveredDevices.length} Gerät(e) gefunden!`, 'success');
+        showStatus(`${discoveredDevices.length} device(s) found!`, 'success');
         renderDiscoveredDevices();
 
       } catch (error) {
         btn.classList.remove('loading');
         btn.disabled = false;
-        btn.querySelector('.btn-text').textContent = 'Netzwerk scannen';
-        showStatus('Fehler beim Scannen: ' + (error.message || 'Unbekannt'), 'error');
+        btn.querySelector('.btn-text').textContent = 'Scan Network';
+        showStatus('Scan error:' + (error.message || 'Unknown'), 'error');
       }
     }
 
@@ -748,8 +748,8 @@
 
         switch (status) {
           case 'ip-changed':
-            buttonHtml = `<button class="btn btn-primary" onclick="updateDeviceIp(${i})">IP aktualisieren</button>`;
-            infoExtra = `<span style="color: #ffc107; font-size: 11px;">Alte IP: ${existingDevice.host}</span>`;
+            buttonHtml = `<button class="btn btn-primary" onclick="updateDeviceIp(${i})">Update IP</button>`;
+            infoExtra = `<span style="color: #ffc107; font-size: 11px;">Old IP: ${existingDevice.host}</span>`;
             break;
           case 'update-mac':
             // Silently update MAC in background
@@ -762,7 +762,7 @@
             break;
           case 'new':
           default:
-            buttonHtml = `<button class="btn btn-success" onclick="addDevice(${i})">Hinzufügen</button>`;
+            buttonHtml = `<button class="btn btn-success" onclick="addDevice(${i})">Add</button>`;
         }
 
         return `
@@ -784,7 +784,7 @@
       if (ipChangedDevices.length > 0) {
         list.innerHTML += `
           <button class="btn btn-primary" onclick="updateAllIps()" style="margin-top: 10px; width: 100%;">
-            Alle ${ipChangedDevices.length} IP-Adressen aktualisieren
+            Update all ${ipChangedDevices.length} IP addresses
           </button>
         `;
       }
@@ -792,7 +792,7 @@
       if (newDevices.length > 1) {
         list.innerHTML += `
           <button class="btn btn-success" onclick="addAllDevices()" style="margin-top: 10px; width: 100%;">
-            Alle ${newDevices.length} neuen Geräte hinzufügen
+            Add all ${newDevices.length} new devices
           </button>
         `;
       }
@@ -807,7 +807,7 @@
         saveConfig();
         render();
         renderDiscoveredDevices();
-        showStatus(`IP von "${existing.name}" aktualisiert: ${oldIp} → ${device.host}`, 'success');
+        showStatus(`IP of "${existing.name}" updated: ${oldIp} → ${device.host}`, 'success');
       }
     }
 
@@ -824,7 +824,7 @@
         saveConfig();
         render();
         renderDiscoveredDevices();
-        showStatus(`${updated} IP-Adresse(n) aktualisiert!`, 'success');
+        showStatus(`${updated} IP address(es) updated!`, 'success');
       }
     }
 
@@ -864,7 +864,7 @@
         saveConfig();
         render();
         renderDiscoveredDevices();
-        showStatus(`${added} Gerät(e) hinzugefügt!`, 'success');
+        showStatus(`${added} device(s) added!`, 'success');
       }
     }
 
@@ -911,16 +911,16 @@
         nasBrowserState.servers = response.servers || [];
 
         if (nasBrowserState.servers.length === 0) {
-          document.getElementById('nasContent').innerHTML = '<p style="color: #dc3545;">Keine DLNA Media Server gefunden. Stelle sicher, dass ein DLNA-Server (z.B. MiniDLNA) im Netzwerk läuft.</p>';
+          document.getElementById('nasContent').innerHTML = '<p style="color: #dc3545;">No DLNA media servers found. Make sure a DLNA server (e.g. MiniDLNA) is running on your network.</p>';
           return;
         }
 
         // Populate server dropdown
         const dropdown = document.getElementById('nasServerDropdown');
-        dropdown.innerHTML = '<option value="">-- Server auswählen --</option>' +
+        dropdown.innerHTML = '<option value="">-- Select server --</option>' +
           nasBrowserState.servers.map(s => `<option value="${s.id}">${s.name} (${s.ip})</option>`).join('');
 
-        document.getElementById('nasContent').innerHTML = '<p style="color: #6c757d;">Wähle oben einen Media Server aus, um dessen Inhalte zu durchsuchen.</p>';
+        document.getElementById('nasContent').innerHTML = '<p style="color: #6c757d;">Select a media server above to browse its content.</p>';
 
       } catch (error) {
         document.getElementById('nasContent').innerHTML = `<p style="color: #dc3545;">Fehler: ${error.message}</p>`;
@@ -929,7 +929,7 @@
 
     async function onServerSelect(serverId) {
       if (!serverId) {
-        document.getElementById('nasContent').innerHTML = '<p style="color: #6c757d;">Wähle oben einen Media Server aus.</p>';
+        document.getElementById('nasContent').innerHTML = '<p style="color: #6c757d;">Select a media server above.</p>';
         return;
       }
 
@@ -981,7 +981,7 @@
       const content = document.getElementById('nasContent');
 
       if (nasBrowserState.items.length === 0) {
-        content.innerHTML = '<p style="color: #6c757d;">Keine Einträge gefunden.</p>';
+        content.innerHTML = '<p style="color: #6c757d;">No items found.</p>';
         return;
       }
 
@@ -1045,7 +1045,7 @@
       render();
       closeNasBrowser();
 
-      showStatus(`NAS-Ordner "${item.name}" ausgewählt!`, 'success');
+      showStatus(`NAS folder "${item.name}" selected!`, 'success');
     }
 
     function closeNasBrowser() {
