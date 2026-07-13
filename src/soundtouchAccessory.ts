@@ -20,6 +20,7 @@ export class SoundTouchAccessory {
   private volumeLightbulbService!: Service;
   private bassLightbulbService?: Service;
   private groupSwitchService!: Service;
+  private tvSourceSwitchService?: Service;
   private inputServices: Service[] = [];
 
   // State
@@ -33,6 +34,7 @@ export class SoundTouchAccessory {
   private currentMute = false;
   private isPoweredOn = false;
   private isGrouped = false;
+  private currentSource = '';
   private currentInputIndex = 0;
   private currentPlayStatus = '';
   private lastActivePresetSlot = 0;
@@ -591,6 +593,51 @@ export class SoundTouchAccessory {
     this.televisionService.addLinkedService(this.groupSwitchService);
   }
 
+  private setupTVSourceSwitch(): void {
+    const sourceName = 'TV Source';
+    this.tvSourceSwitchService = this.accessory.addService(
+      this.platform.Service.Switch,
+      sourceName,
+      'tv-source-switch',
+    );
+
+    this.tvSourceSwitchService
+      .setCharacteristic(this.platform.Characteristic.Name, sourceName)
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue(sourceName);
+
+    this.tvSourceSwitchService.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.currentSource === 'PRODUCT')
+      .onSet(async (value: CharacteristicValue) => {
+        await this.handleTVSourceSwitch(value as boolean);
+      });
+
+    this.televisionService.addLinkedService(this.tvSourceSwitchService);
+  }
+
+  private async handleTVSourceSwitch(value: boolean): Promise<void> {
+    try {
+      if (value) {
+        await this.client.selectSource('PRODUCT', 'TV');
+        this.currentSource = 'PRODUCT';
+        this.isPoweredOn = true;
+        this.updatePowerState();
+        this.platform.log.info(`${this.accessory.displayName} selected TV Source`);
+      } else {
+        await this.client.powerOff();
+        this.currentSource = 'STANDBY';
+        this.isPoweredOn = false;
+        this.updatePowerState();
+        this.platform.log.info(`${this.accessory.displayName} TV Source OFF`);
+      }
+    } catch (error) {
+      this.platform.log.error('Failed to update TV Source:', error);
+      throw new this.platform.api.hap.HapStatusError(
+        this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE,
+      );
+    }
+  }
+
   private async handleGroupSwitch(value: boolean): Promise<void> {
     if (value) {
       // Find master (a box that is currently playing)
@@ -847,8 +894,13 @@ export class SoundTouchAccessory {
       // Setup bass control if available (order: Volume, Bass, Multi-Room)
       await this.setupBassLightbulb();
 
-      // Setup Multi-Room after bass so it appears last
-      this.setupGroupSwitch();
+      // Setup optional switches after bass so they appear last
+      if (this.deviceConfig.multiRoomEnabled !== false) {
+        this.setupGroupSwitch();
+      }
+      if (this.deviceConfig.tvSourceEnabled === true) {
+        this.setupTVSourceSwitch();
+      }
 
       // Store configured presets on device so hardware buttons trigger WebSocket events
       await this.storePresetsOnDevice();
@@ -908,7 +960,11 @@ export class SoundTouchAccessory {
         this.platform.log.info(`${this.accessory.displayName} Power: ${this.isPoweredOn ? 'ON' : 'OFF'}`);
       }
 
+      this.currentSource = data.source;
       this.currentPlayStatus = data.playStatus || '';
+      this.tvSourceSwitchService?.updateCharacteristic(
+        this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
+      );
       this.platform.log.debug(`${this.accessory.displayName} Source: ${data.source}, Playing: ${data.playStatus}`);
 
       // Auto-play next track when current track ends (NAS playlist)
@@ -954,16 +1010,20 @@ export class SoundTouchAccessory {
       }
     });
 
-    this.webSocket.on('zoneUpdated', () => {
-      // Zone changed - refresh group state
-      this.refreshGroupState();
-    });
+    if (this.deviceConfig.multiRoomEnabled !== false) {
+      this.webSocket.on('zoneUpdated', () => {
+        // Zone changed - refresh group state
+        this.refreshGroupState();
+      });
+    }
 
     this.webSocket.on('connected', () => {
       this.platform.log.info(`WebSocket connected for ${this.accessory.displayName}`);
       // Refresh state on (re)connect so HomeKit gets the current status
       this.refreshState();
-      this.refreshGroupState();
+      if (this.deviceConfig.multiRoomEnabled !== false) {
+        this.refreshGroupState();
+      }
     });
 
     this.webSocket.on('disconnected', () => {
@@ -1069,6 +1129,10 @@ export class SoundTouchAccessory {
   }
 
   private async refreshGroupState(): Promise<void> {
+    if (this.deviceConfig.multiRoomEnabled === false) {
+      return;
+    }
+
     try {
       const zone = await this.client.getZone();
       const wasGrouped = this.isGrouped;
@@ -1095,7 +1159,11 @@ export class SoundTouchAccessory {
 
       this.currentVolume = volume.actualvolume;
       this.currentMute = volume.muteenabled;
+      this.currentSource = nowPlaying.source;
       this.isPoweredOn = nowPlaying.source !== 'STANDBY';
+      this.tvSourceSwitchService?.updateCharacteristic(
+        this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
+      );
 
       this.updatePowerState();
       this.updateVolumeCharacteristics();

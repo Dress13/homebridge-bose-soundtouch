@@ -517,6 +517,20 @@
               <label>Multi-Room Name</label>
               <input type="text" value="${device.multiRoomName || ''}" onchange="updateDevice(${i}, 'multiRoomName', this.value)" placeholder="Multi-Room">
             </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Multi-Room</label>
+              <select onchange="updateDevice(${i}, 'multiRoomEnabled', this.value === 'true')">
+                <option value="true" ${device.multiRoomEnabled !== false ? 'selected' : ''}>Enabled</option>
+                <option value="false" ${device.multiRoomEnabled === false ? 'selected' : ''}>Disabled</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>TV Source</label>
+              <select onchange="updateDevice(${i}, 'tvSourceEnabled', this.value === 'true')">
+                <option value="false" ${device.tvSourceEnabled !== true ? 'selected' : ''}>Disabled</option>
+                <option value="true" ${device.tvSourceEnabled === true ? 'selected' : ''}>Enabled</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-row" style="margin-bottom: 15px;">

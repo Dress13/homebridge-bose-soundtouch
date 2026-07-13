@@ -112,6 +112,18 @@
               "placeholder": "Multi-Room",
               "description": "Name des Multi-Room Schalters in HomeKit / Multi-Room switch name in HomeKit"
             },
+            "multiRoomEnabled": {
+              "title": "Enable Multi-Room",
+              "type": "boolean",
+              "default": true,
+              "description": "Multi-Room-Schalter anzeigen / Show the Multi-Room switch"
+            },
+            "tvSourceEnabled": {
+              "title": "Enable TV Source",
+              "type": "boolean",
+              "default": false,
+              "description": "TV-Source-Schalter anzeigen / Show the TV Source switch"
+            },
             "auxName": {
               "title": "AUX Name",
               "type": "string",

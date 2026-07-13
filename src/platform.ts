@@ -42,6 +42,8 @@ export interface DeviceConfig {
   auxName?: string;          // Custom name for AUX input (default: AUX Eingang)
   bluetoothName?: string;    // Custom name for Bluetooth input (default: Bluetooth)
   multiRoomName?: string;    // Custom name for Multi-Room switch (default: Multi-Room)
+  multiRoomEnabled?: boolean; // Show Multi-Room switch (default: true)
+  tvSourceEnabled?: boolean; // Show TV Source switch (default: false)
 }
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {

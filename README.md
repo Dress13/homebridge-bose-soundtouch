@@ -17,6 +17,7 @@ A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
 - **Hardware Buttons** - Physical preset buttons 1-6 on the speaker work again! The plugin intercepts the button press via WebSocket and plays the configured content via DLNA
 - **Spotify & Amazon Music** - Streaming services still supported
 - **Multi-Room** - Group speakers via HomeKit switch - one tap to add/remove a speaker from the zone. Master is auto-detected.
+- **Optional TV Source** - Enable a HomeKit switch that selects the Bose TV input
 - **Auto-Reconnect** - Offline devices retry every 30 seconds
 - **Real-time Updates** - WebSocket connection for instant status changes in HomeKit
 - **Volume Slider** - Volume as brightness slider in Home app
@@ -170,6 +171,8 @@ This plugin uses **External Accessories**:
 | `spotifyUri` | string | Spotify URI (for `spotify` only) |
 | `contentId` | string | Content ID (for `amazon`, `deezer`) |
 | `sourceAccount` | string | Account ID (for `spotify`, `amazon`, `deezer`) |
+| `multiRoomEnabled` | boolean | Show Multi-Room switch (default: `true`) |
+| `tvSourceEnabled` | boolean | Show TV Source switch (default: `false`) |
 | `nasLocation` | string | DLNA Object-ID (for `nas` only) |
 | `nasServer` | string | Server-ID + "/0" (for `nas` only) |
 
@@ -192,6 +195,10 @@ All tracks from an album/folder are loaded from MiniDLNA via UPnP Browse. The pl
 ### Multi-Room
 
 Each speaker has a "Group" switch in HomeKit. When turned on, the speaker joins the zone of the currently playing master. The master is auto-detected (the first speaker that is playing). Zone state syncs in real-time via WebSocket `zoneUpdated` events. Siri: "Hey Siri, turn on Group Kitchen".
+
+### TV Source
+
+Set `tvSourceEnabled` to `true` for a linked "TV Source" switch. Turning it on sends `POST /select` with `source="PRODUCT"` and `sourceAccount="TV"`. Turning it off powers the speaker down.
 
 ### IP Management
 
