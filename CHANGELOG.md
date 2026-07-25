@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.16.15
+- **Optional TV Source switch** - New `tvSourceEnabled` option adds a HomeKit switch that selects the Bose TV input (`PRODUCT` source, e.g. SoundTouch 300). Turning it off powers the speaker down. Disabled by default. (Thanks @vsterian)
+- **Multi-Room switch can be disabled** - New `multiRoomEnabled` option hides the Multi-Room switch (enabled by default).
+
 ## v1.16.12
 - **Store presets on device at startup** - Configured presets are written to the device on initialization. This ensures hardware button presses trigger the WebSocket event needed for DLNA playback. Fixes hardware buttons on devices with empty preset slots (e.g. SoundTouch 10 after factory reset).
 
