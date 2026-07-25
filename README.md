@@ -17,7 +17,13 @@ A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
 - **Hardware Buttons** - Physical preset buttons 1-6 on the speaker work again! The plugin intercepts the button press via WebSocket and plays the configured content via DLNA
 - **Spotify & Amazon Music** - Streaming services still supported
 - **Multi-Room** - Group speakers via HomeKit switch - one tap to add/remove a speaker from the zone. Master is auto-detected.
+- **Party Mode** - Optional switch that groups ALL speakers with one tap (this device becomes master)
 - **Optional TV Source** - Enable a HomeKit switch that selects the Bose TV input
+- **Announcements** - Momentary switches that play an audio URL (doorbell, TTS) and then restore the previous playback and volume
+- **Playing Sensor** - Optional occupancy sensor that is active while music plays - enables HomeKit automations like "when music starts, dim the lights"
+- **Volume Limit** - Optional per-device maximum volume, also enforced for changes made outside HomeKit
+- **Shuffle** - NAS/DLNA presets can play their tracks in random order
+- **Input Sync** - Source changes made in the Bose app or on the device are mirrored in the HomeKit input menu (AUX/Bluetooth)
 - **Auto-Reconnect** - Offline devices retry every 30 seconds
 - **Real-time Updates** - WebSocket connection for instant status changes in HomeKit
 - **Volume Slider** - Volume as brightness slider in Home app
@@ -149,6 +155,16 @@ This plugin uses **External Accessories**:
 | `room` | string | - | Room assignment (optional) |
 | `deviceIcon` | number | `26` | HomeKit icon (see below) |
 | `presets` | array | `[]` | Preset configuration |
+| `multiRoomEnabled` | boolean | `true` | Show Multi-Room switch |
+| `tvSourceEnabled` | boolean | `false` | Show TV Source switch |
+| `partyModeEnabled` | boolean | `false` | Show Party Mode switch (groups all speakers) |
+| `partyModeName` | string | `Party-Modus` | Party Mode switch name |
+| `playingSensorEnabled` | boolean | `false` | Occupancy sensor while playing (for automations) |
+| `playingSensorName` | string | `Wiedergabe` | Playing sensor name |
+| `auxEnabled` | boolean | `true` | Show AUX input |
+| `bluetoothEnabled` | boolean | `true` | Show Bluetooth input |
+| `maxVolume` | number | - | Volume limit 1-100 (empty = no limit) |
+| `announcements` | array | `[]` | Announcement switches (see below) |
 
 ### Device Icons
 
@@ -171,12 +187,19 @@ This plugin uses **External Accessories**:
 | `spotifyUri` | string | Spotify URI (for `spotify` only) |
 | `contentId` | string | Content ID (for `amazon`, `deezer`) |
 | `sourceAccount` | string | Account ID (for `spotify`, `amazon`, `deezer`) |
-| `multiRoomEnabled` | boolean | Show Multi-Room switch (default: `true`) |
-| `tvSourceEnabled` | boolean | Show TV Source switch (default: `false`) |
 | `nasLocation` | string | DLNA Object-ID (for `nas` only) |
 | `nasServer` | string | Server-ID + "/0" (for `nas` only) |
+| `shuffle` | boolean | Play tracks in random order (for `nas` only, default: `false`) |
 
 **Note:** `tunein` is no longer supported (Bose Cloud shut down). Use `radio` with the direct HTTP stream URL instead.
+
+### Announcement Configuration
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `name` | string | Display name in HomeKit |
+| `url` | string | HTTP URL of the audio file or stream |
+| `volume` | number | Volume for the announcement (optional, restored afterwards) |
 
 ## How It Works
 
@@ -199,6 +222,22 @@ Each speaker has a "Group" switch in HomeKit. When turned on, the speaker joins 
 ### TV Source
 
 Set `tvSourceEnabled` to `true` for a linked "TV Source" switch. Turning it on sends `POST /select` with `source="PRODUCT"` and `sourceAccount="TV"`. Turning it off powers the speaker down.
+
+### Party Mode
+
+Set `partyModeEnabled` to `true` for a "Party-Modus" switch. Turning it on makes this speaker the master and adds all other configured speakers to its zone. Turning it off dissolves the zone. Siri: "Hey Siri, turn on Party-Modus".
+
+### Announcements
+
+Each configured announcement appears as a momentary switch. When triggered, the plugin captures the current playback state and volume, optionally raises the volume, and plays the announcement URL via DLNA. When the announcement ends (`STOP_STATE` via WebSocket), the previous volume is restored and the interrupted content resumes (streaming sources via `/select`, DLNA streams via replay). If the speaker was in standby, it returns to standby.
+
+### Playing Sensor
+
+Set `playingSensorEnabled` to `true` for an occupancy sensor that is "occupied" while the speaker is playing. HomeKit cannot trigger automations on TV inputs or media state - the sensor closes this gap: "When occupancy is detected in Kitchen Speaker, dim the lights."
+
+### Volume Limit
+
+Set `maxVolume` (1-100) to cap the volume. HomeKit volume changes are clamped, and if the volume is raised above the limit elsewhere (device buttons, Bose app), the plugin reduces it back to the limit.
 
 ### IP Management
 

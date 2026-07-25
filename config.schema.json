@@ -124,17 +124,89 @@
               "default": false,
               "description": "TV-Source-Schalter anzeigen / Show the TV Source switch"
             },
+            "partyModeEnabled": {
+              "title": "Enable Party Mode",
+              "type": "boolean",
+              "default": false,
+              "description": "Party-Modus-Schalter: gruppiert alle Lautsprecher mit einem Tipp / Party Mode switch: groups all speakers with one tap"
+            },
+            "partyModeName": {
+              "title": "Party Mode Name",
+              "type": "string",
+              "placeholder": "Party-Modus",
+              "description": "Name des Party-Modus-Schalters in HomeKit / Party Mode switch name in HomeKit"
+            },
+            "playingSensorEnabled": {
+              "title": "Enable Playing Sensor",
+              "type": "boolean",
+              "default": false,
+              "description": "Belegungssensor der anzeigt ob Musik läuft - für HomeKit-Automationen / Occupancy sensor that shows when music is playing - for HomeKit automations"
+            },
+            "playingSensorName": {
+              "title": "Playing Sensor Name",
+              "type": "string",
+              "placeholder": "Wiedergabe",
+              "description": "Name des Wiedergabe-Sensors in HomeKit / Playing sensor name in HomeKit"
+            },
+            "maxVolume": {
+              "title": "Max Volume",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Maximale Lautstärke 1-100 (leer = kein Limit) / Maximum volume 1-100 (empty = no limit)"
+            },
             "auxName": {
               "title": "AUX Name",
               "type": "string",
               "placeholder": "AUX Eingang",
               "description": "Name des AUX-Eingangs in HomeKit / AUX input name in HomeKit"
             },
+            "auxEnabled": {
+              "title": "Enable AUX",
+              "type": "boolean",
+              "default": true,
+              "description": "AUX-Eingang in HomeKit anzeigen / Show AUX input in HomeKit"
+            },
             "bluetoothName": {
               "title": "Bluetooth Name",
               "type": "string",
               "placeholder": "Bluetooth",
               "description": "Name des Bluetooth-Eingangs in HomeKit / Bluetooth input name in HomeKit"
+            },
+            "bluetoothEnabled": {
+              "title": "Enable Bluetooth",
+              "type": "boolean",
+              "default": true,
+              "description": "Bluetooth-Eingang in HomeKit anzeigen / Show Bluetooth input in HomeKit"
+            },
+            "announcements": {
+              "title": "Ansagen / Announcements",
+              "description": "Momentschalter die eine URL abspielen und danach die vorherige Wiedergabe fortsetzen / Momentary switches that play a URL and then restore previous playback",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "required": true,
+                    "description": "Anzeigename in HomeKit"
+                  },
+                  "url": {
+                    "title": "URL",
+                    "type": "string",
+                    "required": true,
+                    "description": "HTTP-URL der Audio-Datei oder des Streams / HTTP URL of the audio file or stream"
+                  },
+                  "volume": {
+                    "title": "Lautstärke / Volume",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Lautstärke für die Ansage (leer = aktuelle Lautstärke) / Volume for the announcement (empty = current volume)"
+                  }
+                }
+              }
             },
             "presets": {
               "title": "Preset-Belegung",
@@ -201,6 +273,12 @@
                     "title": "NAS Server",
                     "type": "string",
                     "description": "DLNA Server-ID (wird automatisch gesetzt)"
+                  },
+                  "shuffle": {
+                    "title": "Shuffle",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Titel in zufälliger Reihenfolge abspielen (nur NAS/DLNA) / Play tracks in random order (NAS/DLNA only)"
                   }
                 }
               }

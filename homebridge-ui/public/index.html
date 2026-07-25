@@ -534,13 +534,56 @@
           </div>
 
           <div class="form-row" style="margin-bottom: 15px;">
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Party Mode</label>
+              <select onchange="updateDevice(${i}, 'partyModeEnabled', this.value === 'true')">
+                <option value="false" ${device.partyModeEnabled !== true ? 'selected' : ''}>Disabled</option>
+                <option value="true" ${device.partyModeEnabled === true ? 'selected' : ''}>Enabled - Switch groups all speakers</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Party Mode Name</label>
+              <input type="text" value="${device.partyModeName || ''}" onchange="updateDevice(${i}, 'partyModeName', this.value)" placeholder="Party-Modus">
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Playing Sensor</label>
+              <select onchange="updateDevice(${i}, 'playingSensorEnabled', this.value === 'true')">
+                <option value="false" ${device.playingSensorEnabled !== true ? 'selected' : ''}>Disabled</option>
+                <option value="true" ${device.playingSensorEnabled === true ? 'selected' : ''}>Enabled - For automations</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Playing Sensor Name</label>
+              <input type="text" value="${device.playingSensorName || ''}" onchange="updateDevice(${i}, 'playingSensorName', this.value)" placeholder="Wiedergabe">
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Max Volume (1-100)</label>
+              <input type="number" min="1" max="100" value="${device.maxVolume || ''}" onchange="updateDevice(${i}, 'maxVolume', this.value ? parseInt(this.value) : undefined)" placeholder="No limit">
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 15px;">
             <div class="form-group" style="flex: 1 1 200px;">
               <label>AUX Name</label>
               <input type="text" value="${device.auxName || ''}" onchange="updateDevice(${i}, 'auxName', this.value)" placeholder="AUX Eingang">
             </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>AUX Input</label>
+              <select onchange="updateDevice(${i}, 'auxEnabled', this.value === 'true')">
+                <option value="true" ${device.auxEnabled !== false ? 'selected' : ''}>Enabled</option>
+                <option value="false" ${device.auxEnabled === false ? 'selected' : ''}>Disabled</option>
+              </select>
+            </div>
             <div class="form-group" style="flex: 1 1 200px;">
               <label>Bluetooth Name</label>
               <input type="text" value="${device.bluetoothName || ''}" onchange="updateDevice(${i}, 'bluetoothName', this.value)" placeholder="Bluetooth">
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Bluetooth Input</label>
+              <select onchange="updateDevice(${i}, 'bluetoothEnabled', this.value === 'true')">
+                <option value="true" ${device.bluetoothEnabled !== false ? 'selected' : ''}>Enabled</option>
+                <option value="false" ${device.bluetoothEnabled === false ? 'selected' : ''}>Disabled</option>
+              </select>
             </div>
           </div>
 
@@ -556,6 +599,49 @@
             <button class="btn btn-success" onclick="addPreset(${i})" style="margin-top: 10px;">
               + Add Preset
             </button>
+          </div>
+
+          <div class="presets-section">
+            <h4>Announcements</h4>
+            <small style="display: block; margin-bottom: 15px; color: #6c757d;">
+              Momentary switches that play an audio URL (doorbell, TTS message) and
+              then restore the previous playback and volume.
+            </small>
+            <div id="announcements-${i}">
+              ${renderAnnouncements(device, i)}
+            </div>
+            <button class="btn btn-success" onclick="addAnnouncement(${i})" style="margin-top: 10px;">
+              + Add Announcement
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderAnnouncements(device, deviceIndex) {
+      if (!device.announcements || device.announcements.length === 0) {
+        return '<p style="color: #6c757d; font-style: italic;">No announcements configured.</p>';
+      }
+
+      return device.announcements.map((announcement, ai) => `
+        <div class="preset-item">
+          <div class="preset-header">
+            <span class="preset-title">${announcement.name || 'Unnamed'}</span>
+            <button class="preset-remove" onclick="removeAnnouncement(${deviceIndex}, ${ai})">×</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" value="${announcement.name || ''}" onchange="updateAnnouncement(${deviceIndex}, ${ai}, 'name', this.value)" placeholder="e.g. Doorbell">
+            </div>
+            <div class="form-group">
+              <label>Volume (optional)</label>
+              <input type="number" min="1" max="100" value="${announcement.volume || ''}" onchange="updateAnnouncement(${deviceIndex}, ${ai}, 'volume', this.value ? parseInt(this.value) : undefined)" placeholder="Current volume">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Audio URL</label>
+            <input type="text" value="${announcement.url || ''}" onchange="updateAnnouncement(${deviceIndex}, ${ai}, 'url', this.value)" placeholder="http://...">
           </div>
         </div>
       `).join('');
@@ -627,6 +713,13 @@
               </div>
               <small>Server: ${preset.nasServer || 'Not set'}</small>
             </div>
+            <div class="form-group">
+              <label>Playback Order</label>
+              <select onchange="updatePreset(${deviceIndex}, ${pi}, 'shuffle', this.value === 'true')">
+                <option value="false" ${preset.shuffle !== true ? 'selected' : ''}>In order</option>
+                <option value="true" ${preset.shuffle === true ? 'selected' : ''}>Shuffle (random order)</option>
+              </select>
+            </div>
           ` : ''}
         </div>
       `).join('');
@@ -690,6 +783,27 @@
 
     function removePreset(deviceIndex, presetIndex) {
       config.devices[deviceIndex].presets.splice(presetIndex, 1);
+      saveConfig();
+      render();
+    }
+
+    function addAnnouncement(deviceIndex) {
+      if (!config.devices[deviceIndex].announcements) {
+        config.devices[deviceIndex].announcements = [];
+      }
+      config.devices[deviceIndex].announcements.push({ name: '', url: '' });
+      saveConfig();
+      render();
+    }
+
+    function updateAnnouncement(deviceIndex, announcementIndex, field, value) {
+      config.devices[deviceIndex].announcements[announcementIndex][field] = value;
+      saveConfig();
+      render();
+    }
+
+    function removeAnnouncement(deviceIndex, announcementIndex) {
+      config.devices[deviceIndex].announcements.splice(announcementIndex, 1);
       saveConfig();
       render();
     }

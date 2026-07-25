@@ -475,6 +475,30 @@ export class SoundTouchClient {
     await this.post('/select', xml);
   }
 
+  async selectContentItem(item: ContentItem): Promise<void> {
+    // Re-select previously captured content (e.g. after an announcement)
+    const builder = new Builder({ headless: true });
+    const attrs: Record<string, string> = { source: item.source };
+    if (item.type) {
+      attrs.type = item.type;
+    }
+    if (item.location) {
+      attrs.location = item.location;
+    }
+    if (item.sourceAccount !== undefined) {
+      attrs.sourceAccount = item.sourceAccount;
+    }
+    attrs.isPresetable = 'true';
+    const obj: { ContentItem: { $: Record<string, string>; itemName?: string } } = {
+      ContentItem: { $: attrs },
+    };
+    if (item.name) {
+      obj.ContentItem.itemName = item.name;
+    }
+    const xml = builder.buildObject(obj);
+    await this.post('/select', xml);
+  }
+
   async selectAux(): Promise<void> {
     await this.pressKey('AUX_INPUT');
   }
@@ -483,11 +507,18 @@ export class SoundTouchClient {
     await this.selectSource('BLUETOOTH');
   }
 
+  private lastPlayed?: { url: string; title: string };
+
+  getLastPlayed(): { url: string; title: string } | undefined {
+    return this.lastPlayed;
+  }
+
   async playUrl(url: string, title = ''): Promise<void> {
     // Play HTTP stream via DLNA SetAVTransportURI on port 8091
     // This works after the Bose cloud shutdown (LOCAL_INTERNET_RADIO removed)
     // Bose SoundTouch doesn't support HTTPS streams - convert to HTTP
     const httpUrl = url.trim().replace(/^https:\/\//i, 'http://');
+    this.lastPlayed = { url: httpUrl, title };
     const xmlUrl = this.xmlEscape(httpUrl);
     const xmlTitle = this.xmlEscape(title);
 
@@ -609,7 +640,7 @@ export class SoundTouchClient {
 
   async playStoredMusic(
     location: string, sourceAccount: string,
-    nasServerIp?: string, albumName?: string,
+    nasServerIp?: string, albumName?: string, shuffle = false,
   ): Promise<void> {
     if (!nasServerIp) {
       const serverInfo = await this.getMediaServerIp(sourceAccount);
@@ -624,10 +655,22 @@ export class SoundTouchClient {
       throw new Error(`No tracks found for ObjectID: ${location}`);
     }
 
-    this.playlist = tracks;
+    this.playlist = shuffle ? SoundTouchClient.shuffleTracks(tracks) : tracks;
     this.playlistIndex = 0;
     const first = this.playlist[0];
     await this.playUrl(first.url, first.title || albumName || '');
+  }
+
+  private static shuffleTracks(
+    tracks: Array<{ url: string; title: string }>,
+  ): Array<{ url: string; title: string }> {
+    // Fisher-Yates shuffle on a copy
+    const shuffled = [...tracks];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
 
   async playNextTrack(): Promise<boolean> {

@@ -25,6 +25,14 @@ export interface PresetConfig {
   sourceAccount?: string;    // Account identifier for streaming services
   nasLocation?: string;      // For NAS/DLNA: DLNA Object-ID
   nasServer?: string;        // For NAS/DLNA: Server-ID + "/0"
+  shuffle?: boolean;         // For NAS/DLNA: play tracks in random order
+}
+
+// Announcement configuration (momentary switch that plays a URL, then restores playback)
+export interface AnnouncementConfig {
+  name: string;
+  url: string;               // HTTP stream/file URL played via DLNA
+  volume?: number;           // Playback volume for the announcement (optional)
 }
 
 // Device configuration with individual presets and icon
@@ -44,6 +52,14 @@ export interface DeviceConfig {
   multiRoomName?: string;    // Custom name for Multi-Room switch (default: Multi-Room)
   multiRoomEnabled?: boolean; // Show Multi-Room switch (default: true)
   tvSourceEnabled?: boolean; // Show TV Source switch (default: false)
+  auxEnabled?: boolean;      // Show AUX input (default: true)
+  bluetoothEnabled?: boolean; // Show Bluetooth input (default: true)
+  maxVolume?: number;        // Volume limit 1-100 (default: no limit)
+  playingSensorEnabled?: boolean; // Occupancy sensor while playing, for automations (default: false)
+  playingSensorName?: string; // Custom name for playing sensor (default: Wiedergabe)
+  partyModeEnabled?: boolean; // Party Mode switch: group all speakers (default: false)
+  partyModeName?: string;    // Custom name for Party Mode switch (default: Party-Modus)
+  announcements?: AnnouncementConfig[]; // Announcement switches
 }
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {

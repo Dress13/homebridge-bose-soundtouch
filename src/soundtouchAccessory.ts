@@ -3,8 +3,8 @@ import {
   PlatformAccessory,
   CharacteristicValue,
 } from 'homebridge';
-import { SoundTouchPlatform, DeviceConfig, PresetConfig } from './platform';
-import { SoundTouchClient, DeviceInfo } from './soundtouchClient';
+import { SoundTouchPlatform, DeviceConfig, PresetConfig, AnnouncementConfig } from './platform';
+import { SoundTouchClient, DeviceInfo, ContentItem, ZoneMember } from './soundtouchClient';
 import {
   SoundTouchWebSocket, VolumeUpdate, NowPlayingUpdate, PresetSelectionUpdate,
 } from './soundtouchWebSocket';
@@ -21,6 +21,9 @@ export class SoundTouchAccessory {
   private bassLightbulbService?: Service;
   private groupSwitchService!: Service;
   private tvSourceSwitchService?: Service;
+  private playingSensorService?: Service;
+  private partySwitchService?: Service;
+  private announcementServices: Service[] = [];
   private inputServices: Service[] = [];
 
   // State
@@ -34,7 +37,15 @@ export class SoundTouchAccessory {
   private currentMute = false;
   private isPoweredOn = false;
   private isGrouped = false;
+  private isPartyActive = false;
   private currentSource = '';
+  private announcementRestore?: {
+    volume: number;
+    wasOn: boolean;
+    contentItem?: ContentItem;
+    dlna?: { url: string; title: string };
+    timeout: ReturnType<typeof setTimeout>;
+  };
   private currentInputIndex = 0;
   private currentPlayStatus = '';
   private lastActivePresetSlot = 0;
@@ -180,7 +191,7 @@ export class SoundTouchAccessory {
     this.speakerService.getCharacteristic(this.platform.Characteristic.Volume)
       .onGet(() => this.currentVolume)
       .onSet(async (value: CharacteristicValue) => {
-        const volume = value as number;
+        const volume = this.clampVolume(value as number);
         try {
           await this.client.setVolume(volume);
           this.currentVolume = volume;
@@ -255,7 +266,7 @@ export class SoundTouchAccessory {
     this.volumeLightbulbService.getCharacteristic(this.platform.Characteristic.Brightness)
       .onGet(() => this.currentVolume)
       .onSet(async (value: CharacteristicValue) => {
-        const volume = value as number;
+        const volume = this.clampVolume(value as number);
         try {
           await this.client.setVolume(volume);
           this.currentVolume = volume;
@@ -371,13 +382,17 @@ export class SoundTouchAccessory {
     }
 
     if (!useButtons) {
-      // Menu mode: AUX and Bluetooth as InputSources
-      this.addInputSource(auxName, 'aux', identifier, 'OTHER');
-      this.inputMap.push({ type: 'aux', slot: 0 });
-      identifier++;
+      // Menu mode: AUX and Bluetooth as InputSources (hideable via config)
+      if (this.deviceConfig.auxEnabled !== false) {
+        this.addInputSource(auxName, 'aux', identifier, 'OTHER');
+        this.inputMap.push({ type: 'aux', slot: 0 });
+        identifier++;
+      }
 
-      this.addInputSource(btName, 'bluetooth', identifier, 'OTHER');
-      this.inputMap.push({ type: 'bluetooth', slot: 0 });
+      if (this.deviceConfig.bluetoothEnabled !== false) {
+        this.addInputSource(btName, 'bluetooth', identifier, 'OTHER');
+        this.inputMap.push({ type: 'bluetooth', slot: 0 });
+      }
     } else {
       // Button mode: separate Switches for everything
       this.setupPresetButtons();
@@ -495,66 +510,70 @@ export class SoundTouchAccessory {
     }
 
     // AUX button (slot -1)
-    const auxSwitch = this.accessory.addService(
-      this.platform.Service.Switch,
-      this.deviceConfig.auxName || 'AUX Eingang', 'aux-button',
-    );
-    const auxLabel = this.deviceConfig.auxName || 'AUX Eingang';
-    auxSwitch.setCharacteristic(this.platform.Characteristic.Name, auxLabel)
-      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .setValue(auxLabel);
-    auxSwitch.getCharacteristic(this.platform.Characteristic.On)
-      .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -1)
-      .onSet(async (value: CharacteristicValue) => {
-        if (value) {
-          if (!this.isPoweredOn) {
-            await this.client.powerOn();
-            this.isPoweredOn = true;
+    if (this.deviceConfig.auxEnabled !== false) {
+      const auxSwitch = this.accessory.addService(
+        this.platform.Service.Switch,
+        this.deviceConfig.auxName || 'AUX Eingang', 'aux-button',
+      );
+      const auxLabel = this.deviceConfig.auxName || 'AUX Eingang';
+      auxSwitch.setCharacteristic(this.platform.Characteristic.Name, auxLabel)
+        .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+        .setValue(auxLabel);
+      auxSwitch.getCharacteristic(this.platform.Characteristic.On)
+        .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -1)
+        .onSet(async (value: CharacteristicValue) => {
+          if (value) {
+            if (!this.isPoweredOn) {
+              await this.client.powerOn();
+              this.isPoweredOn = true;
+              this.updatePowerState();
+            }
+            await this.client.selectAux();
+            this.lastActivePresetSlot = -1;
+          } else {
+            await this.client.powerOff();
+            this.isPoweredOn = false;
             this.updatePowerState();
+            this.lastActivePresetSlot = 0;
           }
-          await this.client.selectAux();
-          this.lastActivePresetSlot = -1;
-        } else {
-          await this.client.powerOff();
-          this.isPoweredOn = false;
-          this.updatePowerState();
-          this.lastActivePresetSlot = 0;
-        }
-        this.updatePresetSwitchStates();
-      });
-    this.presetSwitchServices.push(auxSwitch);
-    this.presetSwitchSlots.push(-1);
+          this.updatePresetSwitchStates();
+        });
+      this.presetSwitchServices.push(auxSwitch);
+      this.presetSwitchSlots.push(-1);
+    }
 
     // Bluetooth button (slot -2)
-    const btSwitch = this.accessory.addService(
-      this.platform.Service.Switch,
-      this.deviceConfig.bluetoothName || 'Bluetooth', 'bluetooth-button',
-    );
-    const btLabel = this.deviceConfig.bluetoothName || 'Bluetooth';
-    btSwitch.setCharacteristic(this.platform.Characteristic.Name, btLabel)
-      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .setValue(btLabel);
-    btSwitch.getCharacteristic(this.platform.Characteristic.On)
-      .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -2)
-      .onSet(async (value: CharacteristicValue) => {
-        if (value) {
-          if (!this.isPoweredOn) {
-            await this.client.powerOn();
-            this.isPoweredOn = true;
+    if (this.deviceConfig.bluetoothEnabled !== false) {
+      const btSwitch = this.accessory.addService(
+        this.platform.Service.Switch,
+        this.deviceConfig.bluetoothName || 'Bluetooth', 'bluetooth-button',
+      );
+      const btLabel = this.deviceConfig.bluetoothName || 'Bluetooth';
+      btSwitch.setCharacteristic(this.platform.Characteristic.Name, btLabel)
+        .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+        .setValue(btLabel);
+      btSwitch.getCharacteristic(this.platform.Characteristic.On)
+        .onGet(() => this.isPoweredOn && this.lastActivePresetSlot === -2)
+        .onSet(async (value: CharacteristicValue) => {
+          if (value) {
+            if (!this.isPoweredOn) {
+              await this.client.powerOn();
+              this.isPoweredOn = true;
+              this.updatePowerState();
+            }
+            await this.client.selectBluetooth();
+            this.lastActivePresetSlot = -2;
+          } else {
+            await this.client.powerOff();
+            this.isPoweredOn = false;
             this.updatePowerState();
+            this.lastActivePresetSlot = 0;
           }
-          await this.client.selectBluetooth();
-          this.lastActivePresetSlot = -2;
-        } else {
-          await this.client.powerOff();
-          this.isPoweredOn = false;
-          this.updatePowerState();
-          this.lastActivePresetSlot = 0;
-        }
-        this.updatePresetSwitchStates();
-      });
-    this.presetSwitchServices.push(btSwitch);
-    this.presetSwitchSlots.push(-2);
+          this.updatePresetSwitchStates();
+        });
+      this.presetSwitchServices.push(btSwitch);
+      this.presetSwitchSlots.push(-2);
+    }
 
     this.platform.log.info(
       `Setup ${this.presetSwitchServices.length} buttons for ${this.accessory.displayName}`,
@@ -638,6 +657,272 @@ export class SoundTouchAccessory {
     }
   }
 
+  private setupPlayingSensor(): void {
+    const sensorName = this.deviceConfig.playingSensorName || 'Wiedergabe';
+    this.playingSensorService = this.accessory.addService(
+      this.platform.Service.OccupancySensor,
+      sensorName,
+      'playing-sensor',
+    );
+
+    this.playingSensorService
+      .setCharacteristic(this.platform.Characteristic.Name, sensorName)
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue(sensorName);
+
+    this.playingSensorService.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
+      .onGet(() => this.isPlaying()
+        ? this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED
+        : this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+
+    this.televisionService.addLinkedService(this.playingSensorService);
+  }
+
+  private updatePlayingSensor(): void {
+    this.playingSensorService?.updateCharacteristic(
+      this.platform.Characteristic.OccupancyDetected,
+      this.isPlaying()
+        ? this.platform.Characteristic.OccupancyDetected.OCCUPANCY_DETECTED
+        : this.platform.Characteristic.OccupancyDetected.OCCUPANCY_NOT_DETECTED,
+    );
+  }
+
+  private setupPartySwitch(): void {
+    const partyName = this.deviceConfig.partyModeName || 'Party-Modus';
+    this.partySwitchService = this.accessory.addService(
+      this.platform.Service.Switch,
+      partyName,
+      'party-switch',
+    );
+
+    this.partySwitchService
+      .setCharacteristic(this.platform.Characteristic.Name, partyName)
+      .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+      .setValue(partyName);
+
+    this.partySwitchService.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => this.isPartyActive)
+      .onSet(async (value: CharacteristicValue) => {
+        await this.handlePartySwitch(value as boolean);
+      });
+
+    this.televisionService.addLinkedService(this.partySwitchService);
+  }
+
+  private async handlePartySwitch(value: boolean): Promise<void> {
+    const myInfo = this.deviceInfo;
+    if (!myInfo) {
+      throw new this.platform.api.hap.HapStatusError(
+        this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE,
+      );
+    }
+
+    if (value) {
+      // This device becomes master, all other known speakers join
+      const slaves: ZoneMember[] = [];
+      for (const accessory of this.platform.getAllAccessories()) {
+        if (accessory === this) {
+          continue;
+        }
+        const info = accessory.getDeviceInfo();
+        if (info) {
+          slaves.push({ ipaddress: accessory.getHost(), macaddress: info.macAddress });
+        }
+      }
+
+      if (slaves.length === 0) {
+        this.platform.log.warn(
+          `${this.accessory.displayName}: no other speakers available for party mode`,
+        );
+        setTimeout(() => {
+          this.partySwitchService?.updateCharacteristic(
+            this.platform.Characteristic.On, false,
+          );
+        }, 100);
+        return;
+      }
+
+      try {
+        if (!this.isPoweredOn) {
+          await this.client.powerOn();
+          this.isPoweredOn = true;
+          this.updatePowerState();
+        }
+        await this.client.createZone(myInfo.macAddress, slaves);
+        this.isPartyActive = true;
+        this.platform.log.info(
+          `${this.accessory.displayName} party mode ON (${slaves.length + 1} speakers)`,
+        );
+      } catch (error) {
+        this.platform.log.error('Failed to start party mode:', error);
+        setTimeout(() => {
+          this.partySwitchService?.updateCharacteristic(
+            this.platform.Characteristic.On, false,
+          );
+        }, 100);
+      }
+    } else {
+      try {
+        const zone = await this.client.getZone();
+        if (zone && zone.members.length > 0) {
+          await this.client.removeZoneSlave(myInfo.macAddress, zone.members);
+        }
+        this.isPartyActive = false;
+        this.platform.log.info(`${this.accessory.displayName} party mode OFF`);
+      } catch (error) {
+        this.platform.log.error('Failed to end party mode:', error);
+      }
+    }
+  }
+
+  private async refreshPartyState(): Promise<void> {
+    if (!this.partySwitchService) {
+      return;
+    }
+    try {
+      const zone = await this.client.getZone();
+      const myMac = this.deviceInfo?.macAddress?.toUpperCase();
+      const active = zone !== null && zone.members.length > 0
+        && zone.master?.toUpperCase() === myMac;
+      if (active !== this.isPartyActive) {
+        this.isPartyActive = active;
+        this.partySwitchService.updateCharacteristic(
+          this.platform.Characteristic.On, active,
+        );
+        this.platform.log.info(
+          `${this.accessory.displayName} party mode: ${active ? 'ON' : 'OFF'}`,
+        );
+      }
+    } catch {
+      // Ignore errors during party state refresh
+    }
+  }
+
+  private setupAnnouncementSwitches(): void {
+    const announcements = this.deviceConfig.announcements || [];
+    announcements.forEach((announcement, index) => {
+      if (!announcement.name || !announcement.url) {
+        return;
+      }
+
+      const service = this.accessory.addService(
+        this.platform.Service.Switch,
+        announcement.name,
+        `announcement-${index}`,
+      );
+
+      service
+        .setCharacteristic(this.platform.Characteristic.Name, announcement.name)
+        .addCharacteristic(this.platform.Characteristic.ConfiguredName)
+        .setValue(announcement.name);
+
+      // Momentary switch: turns itself off after triggering
+      service.getCharacteristic(this.platform.Characteristic.On)
+        .onGet(() => false)
+        .onSet(async (value: CharacteristicValue) => {
+          if (!value) {
+            return;
+          }
+          setTimeout(() => {
+            service.updateCharacteristic(this.platform.Characteristic.On, false);
+          }, 1000);
+          await this.playAnnouncement(announcement);
+        });
+
+      this.televisionService.addLinkedService(service);
+      this.announcementServices.push(service);
+    });
+
+    if (this.announcementServices.length > 0) {
+      this.platform.log.info(
+        `Setup ${this.announcementServices.length} announcement(s) for ${this.accessory.displayName}`,
+      );
+    }
+  }
+
+  private async playAnnouncement(announcement: AnnouncementConfig): Promise<void> {
+    if (this.announcementRestore) {
+      this.platform.log.warn(
+        `${this.accessory.displayName}: announcement already playing`,
+      );
+      return;
+    }
+
+    try {
+      // Capture current state so we can restore it afterwards
+      const [volume, nowPlaying] = await Promise.all([
+        this.client.getVolume(),
+        this.client.getNowPlaying(),
+      ]);
+      this.announcementRestore = {
+        volume: volume.actualvolume,
+        wasOn: nowPlaying.source !== 'STANDBY',
+        contentItem: nowPlaying.contentItem,
+        dlna: nowPlaying.source === 'UPNP' ? this.client.getLastPlayed() : undefined,
+        // Safety net in case the STOP event never arrives
+        timeout: setTimeout(() => this.finishAnnouncement(), 5 * 60 * 1000),
+      };
+
+      if (announcement.volume) {
+        await this.client.setVolume(this.clampVolume(announcement.volume));
+      }
+      await this.client.playUrl(announcement.url, announcement.name);
+      this.platform.log.info(
+        `${this.accessory.displayName} announcement: ${announcement.name}`,
+      );
+    } catch (error) {
+      if (this.announcementRestore) {
+        clearTimeout(this.announcementRestore.timeout);
+        this.announcementRestore = undefined;
+      }
+      this.platform.log.error('Failed to play announcement:', error);
+      throw new this.platform.api.hap.HapStatusError(
+        this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE,
+      );
+    }
+  }
+
+  private async finishAnnouncement(): Promise<void> {
+    const restore = this.announcementRestore;
+    if (!restore) {
+      return;
+    }
+    this.announcementRestore = undefined;
+    clearTimeout(restore.timeout);
+
+    try {
+      await this.client.setVolume(restore.volume);
+      if (!restore.wasOn) {
+        await this.client.powerOff();
+        this.platform.log.info(
+          `${this.accessory.displayName} announcement done, back to standby`,
+        );
+        return;
+      }
+      if (restore.dlna) {
+        await this.client.playUrl(restore.dlna.url, restore.dlna.title);
+      } else if (restore.contentItem && restore.contentItem.source !== 'STANDBY') {
+        await this.client.selectContentItem(restore.contentItem);
+      }
+      this.platform.log.info(
+        `${this.accessory.displayName} announcement done, playback restored`,
+      );
+    } catch (error) {
+      this.platform.log.error('Failed to restore state after announcement:', error);
+    }
+  }
+
+  private clampVolume(volume: number): number {
+    const max = this.deviceConfig.maxVolume;
+    if (max && max > 0 && volume > max) {
+      this.platform.log.debug(
+        `${this.accessory.displayName} volume ${volume} clamped to max ${max}`,
+      );
+      return max;
+    }
+    return volume;
+  }
+
   private async handleGroupSwitch(value: boolean): Promise<void> {
     if (value) {
       // Find master (a box that is currently playing)
@@ -705,6 +990,33 @@ export class SoundTouchAccessory {
         }
       }
       this.isGrouped = false;
+    }
+  }
+
+  private syncActiveInput(source: string): void {
+    // Mirror externally selected sources (Bose app, hardware) in the HomeKit input menu
+    let type: 'aux' | 'bluetooth' | undefined;
+    if (source === 'AUX') {
+      type = 'aux';
+    } else if (source === 'BLUETOOTH') {
+      type = 'bluetooth';
+    }
+    if (!type) {
+      return;
+    }
+    const index = this.inputMap.findIndex(m => m.type === type);
+    if (index === -1) {
+      return;
+    }
+    const identifier = index + 1;
+    if (this.currentInputIndex !== identifier) {
+      this.currentInputIndex = identifier;
+      this.televisionService.updateCharacteristic(
+        this.platform.Characteristic.ActiveIdentifier, identifier,
+      );
+      this.platform.log.debug(
+        `${this.accessory.displayName} input synced to ${source}`,
+      );
     }
   }
 
@@ -862,6 +1174,7 @@ export class SoundTouchAccessory {
         if (config.nasLocation && config.nasServer) {
           await this.client.playStoredMusic(
             config.nasLocation, config.nasServer, undefined, config.name,
+            config.shuffle === true,
           );
         }
         break;
@@ -901,6 +1214,13 @@ export class SoundTouchAccessory {
       if (this.deviceConfig.tvSourceEnabled === true) {
         this.setupTVSourceSwitch();
       }
+      if (this.deviceConfig.partyModeEnabled === true) {
+        this.setupPartySwitch();
+      }
+      if (this.deviceConfig.playingSensorEnabled === true) {
+        this.setupPlayingSensor();
+      }
+      this.setupAnnouncementSwitches();
 
       // Store configured presets on device so hardware buttons trigger WebSocket events
       await this.storePresetsOnDevice();
@@ -943,6 +1263,15 @@ export class SoundTouchAccessory {
     this.webSocket.on('volumeUpdated', (data: VolumeUpdate) => {
       this.currentVolume = data.actualvolume;
       this.currentMute = data.muteenabled;
+      // Enforce configured volume limit even for device-side changes
+      const max = this.deviceConfig.maxVolume;
+      if (max && max > 0 && data.actualvolume > max) {
+        this.platform.log.info(
+          `${this.accessory.displayName} volume ${data.actualvolume} above limit, reducing to ${max}`,
+        );
+        this.currentVolume = max;
+        this.client.setVolume(max).catch(() => { /* ignore */ });
+      }
       this.updateVolumeCharacteristics();
       this.platform.log.debug(`${this.accessory.displayName} Volume: ${this.currentVolume}, Mute: ${this.currentMute}`);
     });
@@ -965,20 +1294,27 @@ export class SoundTouchAccessory {
       this.tvSourceSwitchService?.updateCharacteristic(
         this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
       );
+      this.updatePlayingSensor();
+      this.syncActiveInput(data.source);
       this.platform.log.debug(`${this.accessory.displayName} Source: ${data.source}, Playing: ${data.playStatus}`);
 
-      // Auto-play next track when current track ends (NAS playlist)
       if (data.playStatus === 'STOP_STATE' && data.source === 'UPNP') {
-        const info = this.client.getPlaylistInfo();
-        if (info.total > 0) {
-          this.client.playNextTrack().then((hasNext) => {
-            if (hasNext) {
-              const newInfo = this.client.getPlaylistInfo();
-              this.platform.log.info(
-                `${this.accessory.displayName} next track ${newInfo.index + 1}/${newInfo.total}`,
-              );
-            }
-          }).catch(() => { /* ignore */ });
+        if (this.announcementRestore) {
+          // Announcement finished - restore previous state
+          this.finishAnnouncement();
+        } else {
+          // Auto-play next track when current track ends (NAS playlist)
+          const info = this.client.getPlaylistInfo();
+          if (info.total > 0) {
+            this.client.playNextTrack().then((hasNext) => {
+              if (hasNext) {
+                const newInfo = this.client.getPlaylistInfo();
+                this.platform.log.info(
+                  `${this.accessory.displayName} next track ${newInfo.index + 1}/${newInfo.total}`,
+                );
+              }
+            }).catch(() => { /* ignore */ });
+          }
         }
       }
     });
@@ -1010,10 +1346,11 @@ export class SoundTouchAccessory {
       }
     });
 
-    if (this.deviceConfig.multiRoomEnabled !== false) {
+    if (this.deviceConfig.multiRoomEnabled !== false || this.deviceConfig.partyModeEnabled === true) {
       this.webSocket.on('zoneUpdated', () => {
-        // Zone changed - refresh group state
+        // Zone changed - refresh group and party state
         this.refreshGroupState();
+        this.refreshPartyState();
       });
     }
 
@@ -1024,6 +1361,7 @@ export class SoundTouchAccessory {
       if (this.deviceConfig.multiRoomEnabled !== false) {
         this.refreshGroupState();
       }
+      this.refreshPartyState();
     });
 
     this.webSocket.on('disconnected', () => {
@@ -1160,6 +1498,7 @@ export class SoundTouchAccessory {
       this.currentVolume = volume.actualvolume;
       this.currentMute = volume.muteenabled;
       this.currentSource = nowPlaying.source;
+      this.currentPlayStatus = nowPlaying.playStatus || '';
       this.isPoweredOn = nowPlaying.source !== 'STANDBY';
       this.tvSourceSwitchService?.updateCharacteristic(
         this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
@@ -1167,6 +1506,8 @@ export class SoundTouchAccessory {
 
       this.updatePowerState();
       this.updateVolumeCharacteristics();
+      this.updatePlayingSensor();
+      this.syncActiveInput(nowPlaying.source);
     } catch (error) {
       this.platform.log.debug('Failed to refresh state:', error);
     }
@@ -1269,6 +1610,10 @@ export class SoundTouchAccessory {
   destroy(): void {
     if (this.initRetryTimer) {
       clearTimeout(this.initRetryTimer);
+    }
+    if (this.announcementRestore) {
+      clearTimeout(this.announcementRestore.timeout);
+      this.announcementRestore = undefined;
     }
     this.webSocket.disconnect();
   }
