@@ -1,8 +1,24 @@
 # Changelog
 
+## v1.17.0
+- **Announcements** - New per-device `announcements` list: momentary switches that play an audio URL via DLNA (doorbell, TTS message), then restore the previous volume and playback (streaming via `/select`, DLNA via replay, standby returns to standby).
+- **Playing sensor** - New `playingSensorEnabled` option adds an occupancy sensor that is active while music plays. Enables HomeKit automations on playback ("when music starts, dim the lights").
+- **Party Mode** - New `partyModeEnabled` option adds a switch that groups ALL speakers with one tap (this device becomes master). Turning it off dissolves the zone.
+- **Volume limit** - New `maxVolume` option (1-100). HomeKit changes are clamped; volume changes from the device or Bose app above the limit are reduced automatically.
+- **Shuffle for NAS presets** - New `shuffle` option per NAS preset plays the album/folder in random order.
+- **AUX/Bluetooth hideable** - New `auxEnabled`/`bluetoothEnabled` options remove unused inputs from HomeKit (menu and button mode).
+- **Input sync** - AUX/Bluetooth selection made in the Bose app or on the device is now mirrored in the HomeKit input menu.
+- **Tests** - New vitest test suite for the SoundTouch client (XML parsing and request building).
+
 ## v1.16.15
 - **Optional TV Source switch** - New `tvSourceEnabled` option adds a HomeKit switch that selects the Bose TV input (`PRODUCT` source, e.g. SoundTouch 300). Turning it off powers the speaker down. Disabled by default. (Thanks @vsterian)
 - **Multi-Room switch can be disabled** - New `multiRoomEnabled` option hides the Multi-Room switch (enabled by default).
+
+## v1.16.14
+- **Hardware buttons on grouped slaves** - A speaker that is a slave in a Multi-Room zone no longer starts its own DLNA playback when a hardware preset button is pressed; the master handles playback for the zone.
+
+## v1.16.13
+- Maintenance release (documentation update).
 
 ## v1.16.12
 - **Store presets on device at startup** - Configured presets are written to the device on initialization. This ensures hardware button presses trigger the WebSocket event needed for DLNA playback. Fixes hardware buttons on devices with empty preset slots (e.g. SoundTouch 10 after factory reset).
