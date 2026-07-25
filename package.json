@@ -7,7 +7,8 @@
     "lint": "eslint src/**.ts --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
     "build": "rimraf ./dist && tsc",
-    "prepublishOnly": "npm run lint && npm run build"
+    "test": "vitest run",
+    "prepublishOnly": "npm run lint && npm run test && npm run build"
   },
   "keywords": [
     "homebridge-plugin",
@@ -46,7 +47,8 @@
     "homebridge": "^1.7.0",
     "nodemon": "^3.0.2",
     "rimraf": "^5.0.5",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.10"
   },
   "homepage": "https://github.com/Dress13/homebridge-bose-soundtouch#readme"
 }
