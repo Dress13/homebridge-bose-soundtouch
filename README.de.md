@@ -18,6 +18,7 @@ Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple 
 - **Spotify & Amazon Music** - Streaming-Dienste weiterhin unterstützt
 - **Multi-Room** - Lautsprecher per HomeKit-Schalter gruppieren - ein Tipp zum Hinzufügen/Entfernen aus der Zone. Master wird automatisch erkannt.
 - **Party-Modus** - Optionaler Schalter, der ALLE Lautsprecher mit einem Tipp gruppiert (dieses Gerät wird Master)
+- **Multi-Room per Hardware-Taste** - Eine Preset-Taste (z.B. 6) schaltet Multi-Room direkt an der Box um - ohne App. Master ist die Box, die gerade spielt
 - **TV Source** - Optionaler HomeKit-Schalter für den Bose TV-Eingang (z.B. SoundTouch 300)
 - **Ansagen** - Momentschalter, die eine Audio-URL abspielen (Klingel, TTS) und danach die vorherige Wiedergabe und Lautstärke wiederherstellen
 - **Wiedergabe-Sensor** - Optionaler Belegungssensor, der aktiv ist, solange Musik läuft - ermöglicht HomeKit-Automationen wie "wenn Musik startet, dimme das Licht"

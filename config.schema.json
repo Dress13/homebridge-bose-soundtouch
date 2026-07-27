@@ -118,6 +118,13 @@
               "default": true,
               "description": "Multi-Room-Schalter anzeigen / Show the Multi-Room switch"
             },
+            "multiRoomPreset": {
+              "title": "Multi-Room Preset-Taste / Multi-Room Preset Button",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6,
+              "description": "Hardware-Preset-Taste (1-6), die Multi-Room umschaltet statt Inhalte abzuspielen. Master ist die Box, die gerade spielt (leer = aus) / Hardware preset button (1-6) that toggles Multi-Room instead of playing content. Master is the speaker currently playing (empty = off)"
+            },
             "tvSourceEnabled": {
               "title": "Enable TV Source",
               "type": "boolean",

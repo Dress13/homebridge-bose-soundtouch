@@ -19,7 +19,7 @@ export class SoundTouchAccessory {
   private speakerService!: Service;
   private volumeLightbulbService!: Service;
   private bassLightbulbService?: Service;
-  private groupSwitchService!: Service;
+  private groupSwitchService?: Service;
   private tvSourceSwitchService?: Service;
   private playingSensorService?: Service;
   private partySwitchService?: Service;
@@ -592,24 +592,25 @@ export class SoundTouchAccessory {
 
   private setupGroupSwitch(): void {
     const groupName = this.deviceConfig.multiRoomName || 'Multi-Room';
-    this.groupSwitchService = this.accessory.addService(
+    const service = this.accessory.addService(
       this.platform.Service.Switch,
       groupName,
       'group-switch',
     );
 
-    this.groupSwitchService
+    service
       .setCharacteristic(this.platform.Characteristic.Name, groupName)
       .addCharacteristic(this.platform.Characteristic.ConfiguredName)
       .setValue(groupName);
 
-    this.groupSwitchService.getCharacteristic(this.platform.Characteristic.On)
+    service.getCharacteristic(this.platform.Characteristic.On)
       .onGet(() => this.isGrouped)
       .onSet(async (value: CharacteristicValue) => {
         await this.handleGroupSwitch(value as boolean);
       });
 
-    this.televisionService.addLinkedService(this.groupSwitchService);
+    this.televisionService.addLinkedService(service);
+    this.groupSwitchService = service;
   }
 
   private setupTVSourceSwitch(): void {
@@ -933,7 +934,7 @@ export class SoundTouchAccessory {
         );
         // Reset switch state
         setTimeout(() => {
-          this.groupSwitchService.updateCharacteristic(
+          this.groupSwitchService?.updateCharacteristic(
             this.platform.Characteristic.On, false,
           );
         }, 100);
@@ -964,7 +965,7 @@ export class SoundTouchAccessory {
       } catch (error) {
         this.platform.log.error('Failed to create group:', error);
         setTimeout(() => {
-          this.groupSwitchService.updateCharacteristic(
+          this.groupSwitchService?.updateCharacteristic(
             this.platform.Characteristic.On, false,
           );
         }, 100);
@@ -1346,7 +1347,9 @@ export class SoundTouchAccessory {
       }
     });
 
-    if (this.deviceConfig.multiRoomEnabled !== false || this.deviceConfig.partyModeEnabled === true) {
+    if (this.deviceConfig.multiRoomEnabled !== false
+      || this.deviceConfig.partyModeEnabled === true
+      || this.deviceConfig.multiRoomPreset) {
       this.webSocket.on('zoneUpdated', () => {
         // Zone changed - refresh group and party state
         this.refreshGroupState();
@@ -1358,9 +1361,7 @@ export class SoundTouchAccessory {
       this.platform.log.info(`WebSocket connected for ${this.accessory.displayName}`);
       // Refresh state on (re)connect so HomeKit gets the current status
       this.refreshState();
-      if (this.deviceConfig.multiRoomEnabled !== false) {
-        this.refreshGroupState();
-      }
+      this.refreshGroupState();
       this.refreshPartyState();
     });
 
@@ -1398,6 +1399,12 @@ export class SoundTouchAccessory {
   }
 
   private async handleHardwarePreset(presetId: number): Promise<void> {
+    // Configured Multi-Room button: toggle group membership instead of playing content
+    if (this.deviceConfig.multiRoomPreset === presetId) {
+      await this.toggleGroupFromHardware();
+      return;
+    }
+
     const configPreset = this.deviceConfig.presets?.find(p => p.slot === presetId);
     if (!configPreset || !configPreset.name) {
       this.platform.log.debug(
@@ -1440,13 +1447,39 @@ export class SoundTouchAccessory {
     }
   }
 
-  private async storePresetsOnDevice(): Promise<void> {
-    if (!this.deviceConfig.presets || this.deviceConfig.presets.length === 0) {
-      return;
+  private async toggleGroupFromHardware(): Promise<void> {
+    try {
+      // Wait for the device to finish processing the button press internally
+      await new Promise(r => setTimeout(r, 1500));
+      const join = !this.isGrouped;
+      this.platform.log.info(
+        `${this.accessory.displayName} hardware Multi-Room button: ${join ? 'joining' : 'leaving'} group`,
+      );
+      await this.handleGroupSwitch(join);
+      this.groupSwitchService?.updateCharacteristic(
+        this.platform.Characteristic.On, this.isGrouped,
+      );
+    } catch (error) {
+      this.platform.log.error(
+        `${this.accessory.displayName} hardware Multi-Room toggle failed:`, error,
+      );
     }
+  }
 
-    for (const preset of this.deviceConfig.presets) {
+  private async storePresetsOnDevice(): Promise<void> {
+    const presets = this.deviceConfig.presets || [];
+    const multiRoomSlot = this.deviceConfig.multiRoomPreset;
+    let stored = 0;
+
+    for (const preset of presets) {
       if (!preset.name || !preset.slot) {
+        continue;
+      }
+      if (preset.slot === multiRoomSlot) {
+        this.platform.log.warn(
+          `${this.accessory.displayName} preset ${preset.slot} (${preset.name}) is also the `
+          + 'Multi-Room button - the button will toggle Multi-Room, not play content',
+        );
         continue;
       }
       try {
@@ -1457,17 +1490,38 @@ export class SoundTouchAccessory {
           sourceAccount: 'UPnPUserName',
           name: preset.name,
         });
+        stored++;
       } catch {
         // Ignore errors - some slots may fail
       }
     }
-    this.platform.log.info(
-      `${this.accessory.displayName} stored ${this.deviceConfig.presets.length} preset(s) on device`,
-    );
+
+    // Store a dummy preset on the Multi-Room slot so the hardware button
+    // triggers the nowSelectionUpdated event we need for the toggle
+    if (multiRoomSlot && multiRoomSlot >= 1 && multiRoomSlot <= 6) {
+      try {
+        await this.client.storePreset(multiRoomSlot, {
+          source: 'UPNP',
+          location: 'multiroom-toggle',
+          sourceAccount: 'UPnPUserName',
+          name: this.deviceConfig.multiRoomName || 'Multi-Room',
+        });
+        stored++;
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    if (stored > 0) {
+      this.platform.log.info(
+        `${this.accessory.displayName} stored ${stored} preset(s) on device`,
+      );
+    }
   }
 
   private async refreshGroupState(): Promise<void> {
-    if (this.deviceConfig.multiRoomEnabled === false) {
+    // Track group state as long as any Multi-Room control (switch or hardware button) is active
+    if (this.deviceConfig.multiRoomEnabled === false && !this.deviceConfig.multiRoomPreset) {
       return;
     }
 
@@ -1476,7 +1530,7 @@ export class SoundTouchAccessory {
       const wasGrouped = this.isGrouped;
       this.isGrouped = zone !== null && zone.members.length > 0;
       if (wasGrouped !== this.isGrouped) {
-        this.groupSwitchService.updateCharacteristic(
+        this.groupSwitchService?.updateCharacteristic(
           this.platform.Characteristic.On, this.isGrouped,
         );
         this.platform.log.info(

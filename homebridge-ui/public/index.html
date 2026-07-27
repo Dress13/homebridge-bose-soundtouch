@@ -560,6 +560,13 @@
               <label>Max Volume (1-100)</label>
               <input type="number" min="1" max="100" value="${device.maxVolume || ''}" onchange="updateDevice(${i}, 'maxVolume', this.value ? parseInt(this.value) : undefined)" placeholder="No limit">
             </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Multi-Room Button</label>
+              <select onchange="updateDevice(${i}, 'multiRoomPreset', this.value ? parseInt(this.value) : undefined)">
+                <option value="" ${!device.multiRoomPreset ? 'selected' : ''}>Off</option>
+                ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${device.multiRoomPreset === n ? 'selected' : ''}>Preset ${n} toggles Multi-Room</option>`).join('')}
+              </select>
+            </div>
           </div>
 
           <div class="form-row" style="margin-bottom: 15px;">

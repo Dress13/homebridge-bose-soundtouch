@@ -51,6 +51,7 @@ export interface DeviceConfig {
   bluetoothName?: string;    // Custom name for Bluetooth input (default: Bluetooth)
   multiRoomName?: string;    // Custom name for Multi-Room switch (default: Multi-Room)
   multiRoomEnabled?: boolean; // Show Multi-Room switch (default: true)
+  multiRoomPreset?: number;  // Hardware preset button (1-6) that toggles Multi-Room instead of playing content
   tvSourceEnabled?: boolean; // Show TV Source switch (default: false)
   auxEnabled?: boolean;      // Show AUX input (default: true)
   bluetoothEnabled?: boolean; // Show Bluetooth input (default: true)

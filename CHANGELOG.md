@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.18.0
+- **Multi-Room via hardware button** - New `multiRoomPreset` option (1-6): pressing that preset button on the speaker toggles Multi-Room instead of playing content. The speaker joins the zone of the speaker currently playing (master auto-detected, same logic as the HomeKit switch); pressing again leaves the zone. Works without the app and even with the HomeKit Multi-Room switch hidden.
+
 ## v1.17.0
 - **Announcements** - New per-device `announcements` list: momentary switches that play an audio URL via DLNA (doorbell, TTS message), then restore the previous volume and playback (streaming via `/select`, DLNA via replay, standby returns to standby).
 - **Playing sensor** - New `playingSensorEnabled` option adds an occupancy sensor that is active while music plays. Enables HomeKit automations on playback ("when music starts, dim the lights").

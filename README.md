@@ -18,6 +18,7 @@ A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
 - **Spotify & Amazon Music** - Streaming services still supported
 - **Multi-Room** - Group speakers via HomeKit switch - one tap to add/remove a speaker from the zone. Master is auto-detected.
 - **Party Mode** - Optional switch that groups ALL speakers with one tap (this device becomes master)
+- **Multi-Room via Hardware Button** - Dedicate a preset button (e.g. 6) to toggle Multi-Room directly on the speaker - no app needed. Master is the speaker currently playing
 - **Optional TV Source** - Enable a HomeKit switch that selects the Bose TV input
 - **Announcements** - Momentary switches that play an audio URL (doorbell, TTS) and then restore the previous playback and volume
 - **Playing Sensor** - Optional occupancy sensor that is active while music plays - enables HomeKit automations like "when music starts, dim the lights"
@@ -156,6 +157,7 @@ This plugin uses **External Accessories**:
 | `deviceIcon` | number | `26` | HomeKit icon (see below) |
 | `presets` | array | `[]` | Preset configuration |
 | `multiRoomEnabled` | boolean | `true` | Show Multi-Room switch |
+| `multiRoomPreset` | number | - | Hardware preset button (1-6) that toggles Multi-Room instead of playing content |
 | `tvSourceEnabled` | boolean | `false` | Show TV Source switch |
 | `partyModeEnabled` | boolean | `false` | Show Party Mode switch (groups all speakers) |
 | `partyModeName` | string | `Party-Modus` | Party Mode switch name |
@@ -222,6 +224,10 @@ Each speaker has a "Group" switch in HomeKit. When turned on, the speaker joins 
 ### TV Source
 
 Set `tvSourceEnabled` to `true` for a linked "TV Source" switch. Turning it on sends `POST /select` with `source="PRODUCT"` and `sourceAccount="TV"`. Turning it off powers the speaker down.
+
+### Multi-Room via Hardware Button
+
+Set `multiRoomPreset` to a preset button number (1-6). Pressing that button on the speaker no longer plays content - instead it toggles Multi-Room: the speaker joins the zone of the speaker that is currently playing (master auto-detected, same logic as the HomeKit switch); pressing again leaves the zone. If nothing is playing anywhere, nothing happens (a warning is logged). A dummy preset is stored on that slot so the hardware button triggers the required WebSocket event. If a content preset is configured on the same slot, the button toggles Multi-Room and a warning is logged.
 
 ### Party Mode
 
