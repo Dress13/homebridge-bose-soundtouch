@@ -53,6 +53,10 @@ export interface DeviceConfig {
   multiRoomEnabled?: boolean; // Show Multi-Room switch (default: true)
   multiRoomPreset?: number;  // Hardware preset button (1-6) that toggles Multi-Room instead of playing content
   tvSourceEnabled?: boolean; // Show TV Source switch (default: false)
+  tvSourceName?: string;     // Custom name for TV Source switch/input (default: TV Source)
+  tvSourceMomentary?: boolean; // TV Source switch acts as momentary button (default: false)
+  offInputEnabled?: boolean; // Show "Off" entry in the input menu (default: false)
+  offName?: string;          // Custom name for the Off input (default: Off)
   auxEnabled?: boolean;      // Show AUX input (default: true)
   bluetoothEnabled?: boolean; // Show Bluetooth input (default: true)
   maxVolume?: number;        // Volume limit 1-100 (default: no limit)

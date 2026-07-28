@@ -531,6 +531,28 @@
                 <option value="true" ${device.tvSourceEnabled === true ? 'selected' : ''}>Enabled</option>
               </select>
             </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>TV Source Name</label>
+              <input type="text" value="${device.tvSourceName || ''}" onchange="updateDevice(${i}, 'tvSourceName', this.value)" placeholder="TV Source">
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>TV Source Mode</label>
+              <select onchange="updateDevice(${i}, 'tvSourceMomentary', this.value === 'true')">
+                <option value="false" ${device.tvSourceMomentary !== true ? 'selected' : ''}>Toggle (shows state)</option>
+                <option value="true" ${device.tvSourceMomentary === true ? 'selected' : ''}>Momentary (tap button)</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Off Input</label>
+              <select onchange="updateDevice(${i}, 'offInputEnabled', this.value === 'true')">
+                <option value="false" ${device.offInputEnabled !== true ? 'selected' : ''}>Disabled</option>
+                <option value="true" ${device.offInputEnabled === true ? 'selected' : ''}>Enabled - Off entry in input menu</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1 1 150px;">
+              <label>Off Input Name</label>
+              <input type="text" value="${device.offName || ''}" onchange="updateDevice(${i}, 'offName', this.value)" placeholder="Off">
+            </div>
           </div>
 
           <div class="form-row" style="margin-bottom: 15px;">

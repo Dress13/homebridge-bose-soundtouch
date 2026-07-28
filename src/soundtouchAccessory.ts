@@ -50,7 +50,9 @@ export class SoundTouchAccessory {
   private currentPlayStatus = '';
   private lastActivePresetSlot = 0;
   // Maps sequential HomeKit Identifier → internal action type + slot
-  private inputMap: Array<{ type: 'preset' | 'aux' | 'bluetooth'; slot: number }> = [];
+  private inputMap: Array<{
+    type: 'preset' | 'aux' | 'bluetooth' | 'off' | 'tvsource'; slot: number;
+  }> = [];
   private presetSwitchServices: Service[] = [];
   private presetSwitchSlots: number[] = [];
 
@@ -368,7 +370,24 @@ export class SoundTouchAccessory {
     const btName = this.deviceConfig.bluetoothName || 'Bluetooth';
 
     if (!useButtons) {
-      // Menu mode: add configured presets as InputSources
+      // Menu mode ordering: Off, TV Source, presets, AUX, Bluetooth
+      if (this.deviceConfig.offInputEnabled === true) {
+        this.addInputSource(
+          this.deviceConfig.offName || 'Off', 'off-input', identifier, 'OTHER',
+        );
+        this.inputMap.push({ type: 'off', slot: 0 });
+        identifier++;
+      }
+
+      if (this.deviceConfig.tvSourceEnabled === true) {
+        this.addInputSource(
+          this.deviceConfig.tvSourceName || 'TV Source', 'tv-source-input', identifier, 'OTHER',
+        );
+        this.inputMap.push({ type: 'tvsource', slot: 0 });
+        identifier++;
+      }
+
+      // Add configured presets as InputSources
       for (let i = 1; i <= 6; i++) {
         const configPreset = this.deviceConfig.presets?.find(p => p.slot === i);
         if (!configPreset || !configPreset.name) {
@@ -614,25 +633,48 @@ export class SoundTouchAccessory {
   }
 
   private setupTVSourceSwitch(): void {
-    const sourceName = 'TV Source';
-    this.tvSourceSwitchService = this.accessory.addService(
+    const sourceName = this.deviceConfig.tvSourceName || 'TV Source';
+    const momentary = this.deviceConfig.tvSourceMomentary === true;
+    const service = this.accessory.addService(
       this.platform.Service.Switch,
       sourceName,
       'tv-source-switch',
     );
 
-    this.tvSourceSwitchService
+    service
       .setCharacteristic(this.platform.Characteristic.Name, sourceName)
       .addCharacteristic(this.platform.Characteristic.ConfiguredName)
       .setValue(sourceName);
 
-    this.tvSourceSwitchService.getCharacteristic(this.platform.Characteristic.On)
-      .onGet(() => this.currentSource === 'PRODUCT')
+    service.getCharacteristic(this.platform.Characteristic.On)
+      .onGet(() => momentary ? false : this.currentSource === 'PRODUCT')
       .onSet(async (value: CharacteristicValue) => {
-        await this.handleTVSourceSwitch(value as boolean);
+        if (momentary) {
+          // Momentary button: tap selects the TV input, switch resets itself
+          if (!value) {
+            return;
+          }
+          setTimeout(() => {
+            service.updateCharacteristic(this.platform.Characteristic.On, false);
+          }, 1000);
+          await this.handleTVSourceSwitch(true);
+        } else {
+          await this.handleTVSourceSwitch(value as boolean);
+        }
       });
 
-    this.televisionService.addLinkedService(this.tvSourceSwitchService);
+    this.televisionService.addLinkedService(service);
+    this.tvSourceSwitchService = service;
+  }
+
+  private updateTvSourceSwitch(): void {
+    // In momentary mode the switch always shows "off"
+    if (this.deviceConfig.tvSourceMomentary === true) {
+      return;
+    }
+    this.tvSourceSwitchService?.updateCharacteristic(
+      this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
+    );
   }
 
   private async handleTVSourceSwitch(value: boolean): Promise<void> {
@@ -996,11 +1038,15 @@ export class SoundTouchAccessory {
 
   private syncActiveInput(source: string): void {
     // Mirror externally selected sources (Bose app, hardware) in the HomeKit input menu
-    let type: 'aux' | 'bluetooth' | undefined;
+    let type: 'aux' | 'bluetooth' | 'off' | 'tvsource' | undefined;
     if (source === 'AUX') {
       type = 'aux';
     } else if (source === 'BLUETOOTH') {
       type = 'bluetooth';
+    } else if (source === 'PRODUCT') {
+      type = 'tvsource';
+    } else if (source === 'STANDBY') {
+      type = 'off';
     }
     if (!type) {
       return;
@@ -1033,7 +1079,23 @@ export class SoundTouchAccessory {
     }
 
     try {
+      // "Off" powers down instead of selecting content
+      if (mapping.type === 'off') {
+        await this.client.powerOff();
+        this.isPoweredOn = false;
+        this.lastActivePresetSlot = 0;
+        this.updatePowerState();
+        this.updatePresetSwitchStates();
+        this.platform.log.info(`${this.accessory.displayName} selected Off`);
+        return;
+      }
+
       switch (mapping.type) {
+        case 'tvsource':
+          await this.client.selectSource('PRODUCT', 'TV');
+          this.lastActivePresetSlot = 0;
+          this.platform.log.info(`${this.accessory.displayName} selected TV Source`);
+          break;
         case 'preset': {
           const configPreset = this.deviceConfig.presets?.find(
             p => p.slot === mapping.slot,
@@ -1250,14 +1312,24 @@ export class SoundTouchAccessory {
         presetName = `Preset ${i}`;
       }
 
-      // Find and update the input service
+      // Resolve slot to its HomeKit identifier via inputMap (identifiers shift
+      // when Off/TV Source entries are enabled or preset slots are skipped)
+      const identifier = this.presetSlotToIdentifier(i);
+      if (identifier === undefined) {
+        continue;
+      }
       const inputService = this.inputServices.find(s =>
-        s.getCharacteristic(this.platform.Characteristic.Identifier).value === i,
+        s.getCharacteristic(this.platform.Characteristic.Identifier).value === identifier,
       );
       if (inputService) {
         inputService.updateCharacteristic(this.platform.Characteristic.ConfiguredName, presetName);
       }
     }
+  }
+
+  private presetSlotToIdentifier(slot: number): number | undefined {
+    const index = this.inputMap.findIndex(m => m.type === 'preset' && m.slot === slot);
+    return index === -1 ? undefined : index + 1;
   }
 
   private setupWebSocket(): void {
@@ -1292,9 +1364,7 @@ export class SoundTouchAccessory {
 
       this.currentSource = data.source;
       this.currentPlayStatus = data.playStatus || '';
-      this.tvSourceSwitchService?.updateCharacteristic(
-        this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
-      );
+      this.updateTvSourceSwitch();
       this.updatePlayingSensor();
       this.syncActiveInput(data.source);
       this.platform.log.debug(`${this.accessory.displayName} Source: ${data.source}, Playing: ${data.playStatus}`);
@@ -1434,11 +1504,14 @@ export class SoundTouchAccessory {
       this.isPoweredOn = true;
       this.lastActivePresetSlot = presetId;
       this.updatePowerState();
-      this.currentInputIndex = presetId;
-      this.televisionService.updateCharacteristic(
-        this.platform.Characteristic.ActiveIdentifier,
-        presetId,
-      );
+      const identifier = this.presetSlotToIdentifier(presetId);
+      if (identifier !== undefined) {
+        this.currentInputIndex = identifier;
+        this.televisionService.updateCharacteristic(
+          this.platform.Characteristic.ActiveIdentifier,
+          identifier,
+        );
+      }
       this.updatePresetSwitchStates();
     } catch (error) {
       this.platform.log.error(
@@ -1554,9 +1627,7 @@ export class SoundTouchAccessory {
       this.currentSource = nowPlaying.source;
       this.currentPlayStatus = nowPlaying.playStatus || '';
       this.isPoweredOn = nowPlaying.source !== 'STANDBY';
-      this.tvSourceSwitchService?.updateCharacteristic(
-        this.platform.Characteristic.On, this.currentSource === 'PRODUCT',
-      );
+      this.updateTvSourceSwitch();
 
       this.updatePowerState();
       this.updateVolumeCharacteristics();

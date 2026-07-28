@@ -129,7 +129,31 @@
               "title": "Enable TV Source",
               "type": "boolean",
               "default": false,
-              "description": "TV-Source-Schalter anzeigen / Show the TV Source switch"
+              "description": "TV-Source-Schalter und Menü-Eintrag anzeigen / Show the TV Source switch and input menu entry"
+            },
+            "tvSourceName": {
+              "title": "TV Source Name",
+              "type": "string",
+              "placeholder": "TV Source",
+              "description": "Name des TV-Source-Schalters/Eingangs in HomeKit / TV Source switch/input name in HomeKit"
+            },
+            "tvSourceMomentary": {
+              "title": "TV Source Momentary",
+              "type": "boolean",
+              "default": false,
+              "description": "TV Source als Taster: Antippen wählt den TV-Eingang, Schalter springt zurück / TV Source as momentary button: tap selects TV input, switch resets itself"
+            },
+            "offInputEnabled": {
+              "title": "Enable Off Input",
+              "type": "boolean",
+              "default": false,
+              "description": "\"Off\"-Eintrag im Eingangsmenü zum Ausschalten / \"Off\" entry in the input menu to power down"
+            },
+            "offName": {
+              "title": "Off Input Name",
+              "type": "string",
+              "placeholder": "Off",
+              "description": "Name des Off-Eintrags in HomeKit / Off input name in HomeKit"
             },
             "partyModeEnabled": {
               "title": "Enable Party Mode",

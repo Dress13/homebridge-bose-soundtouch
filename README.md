@@ -19,7 +19,8 @@ A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
 - **Multi-Room** - Group speakers via HomeKit switch - one tap to add/remove a speaker from the zone. Master is auto-detected.
 - **Party Mode** - Optional switch that groups ALL speakers with one tap (this device becomes master)
 - **Multi-Room via Hardware Button** - Dedicate a preset button (e.g. 6) to toggle Multi-Room directly on the speaker - no app needed. Master is the speaker currently playing
-- **Optional TV Source** - Enable a HomeKit switch that selects the Bose TV input
+- **Optional TV Source** - Enable a HomeKit switch and input-menu entry that selects the Bose TV input (toggle or momentary)
+- **Off Input** - Optional "Off" entry in the input menu to power down without leaving the menu
 - **Announcements** - Momentary switches that play an audio URL (doorbell, TTS) and then restore the previous playback and volume
 - **Playing Sensor** - Optional occupancy sensor that is active while music plays - enables HomeKit automations like "when music starts, dim the lights"
 - **Volume Limit** - Optional per-device maximum volume, also enforced for changes made outside HomeKit
@@ -158,7 +159,11 @@ This plugin uses **External Accessories**:
 | `presets` | array | `[]` | Preset configuration |
 | `multiRoomEnabled` | boolean | `true` | Show Multi-Room switch |
 | `multiRoomPreset` | number | - | Hardware preset button (1-6) that toggles Multi-Room instead of playing content |
-| `tvSourceEnabled` | boolean | `false` | Show TV Source switch |
+| `tvSourceEnabled` | boolean | `false` | Show TV Source switch and input-menu entry |
+| `tvSourceName` | string | `TV Source` | TV Source switch/input name |
+| `tvSourceMomentary` | boolean | `false` | TV Source switch acts as momentary button |
+| `offInputEnabled` | boolean | `false` | Show "Off" entry in the input menu |
+| `offName` | string | `Off` | Off input name |
 | `partyModeEnabled` | boolean | `false` | Show Party Mode switch (groups all speakers) |
 | `partyModeName` | string | `Party-Modus` | Party Mode switch name |
 | `playingSensorEnabled` | boolean | `false` | Occupancy sensor while playing (for automations) |
@@ -223,7 +228,11 @@ Each speaker has a "Group" switch in HomeKit. When turned on, the speaker joins 
 
 ### TV Source
 
-Set `tvSourceEnabled` to `true` for a linked "TV Source" switch. Turning it on sends `POST /select` with `source="PRODUCT"` and `sourceAccount="TV"`. Turning it off powers the speaker down.
+Set `tvSourceEnabled` to `true` for a linked "TV Source" switch and an entry in the input menu. Turning it on sends `POST /select` with `source="PRODUCT"` and `sourceAccount="TV"`. Turning it off powers the speaker down. With `tvSourceMomentary: true` the switch acts as a button instead: tapping selects the TV input and the switch resets itself (power off via the regular power control).
+
+### Off Input & Input Ordering
+
+Set `offInputEnabled` to `true` for an "Off" entry in the input menu that powers the speaker down - useful for scenes and automations that work with input selection. Menu order: Off, TV Source, presets, AUX, Bluetooth. The active input follows external source changes (Bose app, hardware) in real time.
 
 ### Multi-Room via Hardware Button
 
