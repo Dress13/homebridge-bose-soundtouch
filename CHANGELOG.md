@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.19.0
+- **Off input** - New `offInputEnabled` option adds an "Off" entry to the input menu that powers the speaker down (name via `offName`). Useful for scenes/automations built on input selection. (Thanks @vsterian for the idea)
+- **TV Source in the input menu** - With `tvSourceEnabled`, TV Source now also appears as an input-menu entry. Menu order: Off, TV Source, presets, AUX, Bluetooth.
+- **Momentary TV Source** - New `tvSourceMomentary` option turns the TV Source switch into a button: tap selects the TV input, the switch resets itself. New `tvSourceName` option for a custom name. (Thanks @vsterian)
+- **Input sync for TV/Off** - The active input now also follows PRODUCT (TV) and STANDBY (Off) source changes.
+- **Fix: preset input names/selection with shifted identifiers** - Preset renaming and hardware-button input highlighting now resolve the HomeKit identifier via the input map instead of assuming slot = identifier (was wrong when preset slots were skipped, and would break with the new Off/TV entries).
+
 ## v1.18.0
 - **Multi-Room via hardware button** - New `multiRoomPreset` option (1-6): pressing that preset button on the speaker toggles Multi-Room instead of playing content. The speaker joins the zone of the speaker currently playing (master auto-detected, same logic as the HomeKit switch); pressing again leaves the zone. Works without the app and even with the HomeKit Multi-Room switch hidden.
 
