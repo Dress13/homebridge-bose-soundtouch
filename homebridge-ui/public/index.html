@@ -110,6 +110,11 @@
       border-radius: 4px;
       font-size: 14px;
     }
+    .form-group input[type="checkbox"] {
+      width: auto;
+      margin: 0 8px 0 0;
+      vertical-align: middle;
+    }
     .form-group input:focus, .form-group select:focus {
       outline: none;
       border-color: #007bff;
@@ -211,8 +216,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: pointer;
-      user-select: none;
+      gap: 15px;
+      flex-wrap: wrap;
     }
     .global-badge {
       display: inline-block;
@@ -378,9 +383,9 @@
 
   <!-- Global Defaults (apply to all devices, overridable per device) -->
   <div class="section">
-    <div class="collapsible-header" onclick="toggleGlobalDefaults()">
+    <div class="collapsible-header">
       <h4 style="margin: 0;">Defaults for all devices <span id="globalDefaultsBadge" class="global-badge"></span></h4>
-      <span id="globalDefaultsArrow">▸</span>
+      <button id="globalDefaultsToggle" class="btn btn-primary" onclick="toggleGlobalDefaults()">Edit Defaults</button>
     </div>
     <small style="display: block; margin-top: 6px; color: #6c757d;">
       Everything set here applies to every speaker. Each device can override any single value
@@ -724,7 +729,7 @@
       // Global defaults
       const overrides = countGlobalOverrides();
       document.getElementById('globalDefaultsBadge').textContent = overrides > 0 ? `${overrides} set` : '';
-      document.getElementById('globalDefaultsArrow').textContent = globalDefaultsOpen ? '▾' : '▸';
+      document.getElementById('globalDefaultsToggle').textContent = globalDefaultsOpen ? 'Hide Defaults' : 'Edit Defaults';
       const globalOptions = document.getElementById('globalOptions');
       globalOptions.style.display = globalDefaultsOpen ? 'block' : 'none';
       globalOptions.innerHTML = globalDefaultsOpen ? renderOptions('global') : '';

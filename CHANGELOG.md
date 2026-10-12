@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.20.1
+- **Custom UI** - The global defaults section now has a proper "Edit Defaults" / "Hide Defaults" button instead of a tiny arrow. Auto-Discovery checkbox sits next to its label.
+
 ## v1.20.0
 - **Global defaults** - New `defaults` object on the platform takes every device option (icon, names, enable flags, `maxVolume`, `multiRoomPreset`, `presets`, `announcements`, ...) and applies it to all speakers. A device overrides any single value by setting it itself; presets merge by slot, announcements by name. Modelled after the UniFi Protect plugin's global/device options.
 - **Custom UI** - New collapsible "Defaults for all devices" section with the full option form. Per device, every field offers "Global (…)" to inherit, text fields show the inherited value as placeholder, and inherited presets/announcements appear greyed out with an "Override" button that copies them to the device for editing.
