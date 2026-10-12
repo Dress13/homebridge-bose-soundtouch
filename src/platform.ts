@@ -13,6 +13,7 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { SoundTouchAccessory } from './soundtouchAccessory';
 import { SoundTouchDiscovery, DiscoveredDevice } from './discovery';
 import { SoundTouchClient } from './soundtouchClient';
+import { DeviceDefaults, resolveDeviceConfig } from './configDefaults';
 
 // Preset configuration for a single slot
 export interface PresetConfig {
@@ -69,6 +70,7 @@ export interface DeviceConfig {
 
 export interface SoundTouchPlatformConfig extends PlatformConfig {
   devices?: DeviceConfig[];
+  defaults?: DeviceDefaults;   // Global settings, overridden per device
   autoDiscover?: boolean;
   discoveryTimeout?: number;
 }
@@ -360,7 +362,9 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     }
   }
 
-  private registerDevice(device: DeviceConfig, mac?: string): void {
+  private registerDevice(rawDevice: DeviceConfig, mac?: string): void {
+    // Apply global defaults; device-specific values win
+    const device = resolveDeviceConfig(this.config.defaults, rawDevice);
     const uuid = this.api.hap.uuid.generate(device.deviceID || device.host);
     const displayName = device.name || `SoundTouch ${device.host}`;
 
@@ -440,9 +444,10 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
     return undefined;
   }
 
-  // Get device config for a specific host
+  // Get effective device config (global defaults merged) for a specific host
   getDeviceConfig(host: string): DeviceConfig | undefined {
-    return this.config.devices?.find(d => d.host === host);
+    const raw = this.config.devices?.find(d => d.host === host);
+    return raw ? resolveDeviceConfig(this.config.defaults, raw) : undefined;
   }
 
   // Multi-room: find a box that is currently playing (to be the master)

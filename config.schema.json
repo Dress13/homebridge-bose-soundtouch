@@ -28,9 +28,373 @@
         "maximum": 60000,
         "description": "Timeout für die automatische Geräteerkennung"
       },
+      "defaults": {
+        "title": "Globale Einstellungen / Global Defaults",
+        "description": "Gelten für alle Geräte. Jedes Gerät kann einzelne Werte überschreiben. Presets werden per Slot, Ansagen per Name zusammengeführt. / Apply to all devices; each device can override single values. Presets merge by slot, announcements by name.",
+        "type": "object",
+        "properties": {
+          "deviceIcon": {
+            "title": "Geräte-Icon",
+            "type": "integer",
+            "default": 34,
+            "oneOf": [
+              {
+                "title": "Audio Receiver",
+                "enum": [
+                  34
+                ]
+              },
+              {
+                "title": "Speaker (Lautsprecher)",
+                "enum": [
+                  26
+                ]
+              },
+              {
+                "title": "Television (TV)",
+                "enum": [
+                  31
+                ]
+              },
+              {
+                "title": "TV Set Top Box",
+                "enum": [
+                  35
+                ]
+              },
+              {
+                "title": "TV Streaming Stick",
+                "enum": [
+                  36
+                ]
+              },
+              {
+                "title": "AirPlay Speaker",
+                "enum": [
+                  38
+                ]
+              },
+              {
+                "title": "HomePod",
+                "enum": [
+                  39
+                ]
+              },
+              {
+                "title": "Airport",
+                "enum": [
+                  27
+                ]
+              },
+              {
+                "title": "Lightbulb",
+                "enum": [
+                  5
+                ]
+              },
+              {
+                "title": "Switch",
+                "enum": [
+                  8
+                ]
+              },
+              {
+                "title": "Outlet",
+                "enum": [
+                  7
+                ]
+              },
+              {
+                "title": "Fan",
+                "enum": [
+                  3
+                ]
+              },
+              {
+                "title": "Other",
+                "enum": [
+                  1
+                ]
+              }
+            ],
+            "description": "Icon für dieses Gerät in der Home App"
+          },
+          "autoResume": {
+            "title": "Auto-Resume",
+            "type": "boolean",
+            "default": false,
+            "description": "Letztes Preset automatisch abspielen beim Einschalten / Resume last preset on power on"
+          },
+          "presetDisplay": {
+            "title": "Preset-Anzeige / Preset Display",
+            "type": "string",
+            "default": "menu",
+            "oneOf": [
+              {
+                "title": "Menü / Menu (Dropdown)",
+                "enum": [
+                  "menu"
+                ]
+              },
+              {
+                "title": "Einzelne Buttons / Separate Buttons",
+                "enum": [
+                  "buttons"
+                ]
+              }
+            ],
+            "description": "Presets als Dropdown-Menü oder einzelne Schalter in HomeKit / Show presets as dropdown menu or separate switches"
+          },
+          "volumeName": {
+            "title": "Volume Name",
+            "type": "string",
+            "placeholder": "Lautstärke",
+            "description": "Name des Lautstärke-Sliders in HomeKit (sortiert alphabetisch!) / Volume slider name in HomeKit (sorted alphabetically!)"
+          },
+          "bassName": {
+            "title": "Bass Name",
+            "type": "string",
+            "placeholder": "Bass",
+            "description": "Name des Bass-Sliders in HomeKit (sortiert alphabetisch!) / Bass slider name in HomeKit (sorted alphabetically!)"
+          },
+          "multiRoomName": {
+            "title": "Multi-Room Name",
+            "type": "string",
+            "placeholder": "Multi-Room",
+            "description": "Name des Multi-Room Schalters in HomeKit / Multi-Room switch name in HomeKit"
+          },
+          "multiRoomEnabled": {
+            "title": "Enable Multi-Room",
+            "type": "boolean",
+            "default": true,
+            "description": "Multi-Room-Schalter anzeigen / Show the Multi-Room switch"
+          },
+          "multiRoomPreset": {
+            "title": "Multi-Room Preset-Taste / Multi-Room Preset Button",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6,
+            "description": "Hardware-Preset-Taste (1-6), die Multi-Room umschaltet statt Inhalte abzuspielen. Master ist die Box, die gerade spielt (leer = aus) / Hardware preset button (1-6) that toggles Multi-Room instead of playing content. Master is the speaker currently playing (empty = off)"
+          },
+          "tvSourceEnabled": {
+            "title": "Enable TV Source",
+            "type": "boolean",
+            "default": false,
+            "description": "TV-Source-Schalter und Menü-Eintrag anzeigen / Show the TV Source switch and input menu entry"
+          },
+          "tvSourceName": {
+            "title": "TV Source Name",
+            "type": "string",
+            "placeholder": "TV Source",
+            "description": "Name des TV-Source-Schalters/Eingangs in HomeKit / TV Source switch/input name in HomeKit"
+          },
+          "tvSourceMomentary": {
+            "title": "TV Source Momentary",
+            "type": "boolean",
+            "default": false,
+            "description": "TV Source als Taster: Antippen wählt den TV-Eingang, Schalter springt zurück / TV Source as momentary button: tap selects TV input, switch resets itself"
+          },
+          "offInputEnabled": {
+            "title": "Enable Off Input",
+            "type": "boolean",
+            "default": false,
+            "description": "\"Off\"-Eintrag im Eingangsmenü zum Ausschalten / \"Off\" entry in the input menu to power down"
+          },
+          "offName": {
+            "title": "Off Input Name",
+            "type": "string",
+            "placeholder": "Off",
+            "description": "Name des Off-Eintrags in HomeKit / Off input name in HomeKit"
+          },
+          "partyModeEnabled": {
+            "title": "Enable Party Mode",
+            "type": "boolean",
+            "default": false,
+            "description": "Party-Modus-Schalter: gruppiert alle Lautsprecher mit einem Tipp / Party Mode switch: groups all speakers with one tap"
+          },
+          "partyModeName": {
+            "title": "Party Mode Name",
+            "type": "string",
+            "placeholder": "Party-Modus",
+            "description": "Name des Party-Modus-Schalters in HomeKit / Party Mode switch name in HomeKit"
+          },
+          "playingSensorEnabled": {
+            "title": "Enable Playing Sensor",
+            "type": "boolean",
+            "default": false,
+            "description": "Belegungssensor der anzeigt ob Musik läuft - für HomeKit-Automationen / Occupancy sensor that shows when music is playing - for HomeKit automations"
+          },
+          "playingSensorName": {
+            "title": "Playing Sensor Name",
+            "type": "string",
+            "placeholder": "Wiedergabe",
+            "description": "Name des Wiedergabe-Sensors in HomeKit / Playing sensor name in HomeKit"
+          },
+          "maxVolume": {
+            "title": "Max Volume",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Maximale Lautstärke 1-100 (leer = kein Limit) / Maximum volume 1-100 (empty = no limit)"
+          },
+          "auxName": {
+            "title": "AUX Name",
+            "type": "string",
+            "placeholder": "AUX Eingang",
+            "description": "Name des AUX-Eingangs in HomeKit / AUX input name in HomeKit"
+          },
+          "auxEnabled": {
+            "title": "Enable AUX",
+            "type": "boolean",
+            "default": true,
+            "description": "AUX-Eingang in HomeKit anzeigen / Show AUX input in HomeKit"
+          },
+          "bluetoothName": {
+            "title": "Bluetooth Name",
+            "type": "string",
+            "placeholder": "Bluetooth",
+            "description": "Name des Bluetooth-Eingangs in HomeKit / Bluetooth input name in HomeKit"
+          },
+          "bluetoothEnabled": {
+            "title": "Enable Bluetooth",
+            "type": "boolean",
+            "default": true,
+            "description": "Bluetooth-Eingang in HomeKit anzeigen / Show Bluetooth input in HomeKit"
+          },
+          "announcements": {
+            "title": "Ansagen / Announcements",
+            "description": "Momentschalter die eine URL abspielen und danach die vorherige Wiedergabe fortsetzen / Momentary switches that play a URL and then restore previous playback",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "title": "Name",
+                  "type": "string",
+                  "required": true,
+                  "description": "Anzeigename in HomeKit"
+                },
+                "url": {
+                  "title": "URL",
+                  "type": "string",
+                  "required": true,
+                  "description": "HTTP-URL der Audio-Datei oder des Streams / HTTP URL of the audio file or stream"
+                },
+                "volume": {
+                  "title": "Lautstärke / Volume",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Lautstärke für die Ansage (leer = aktuelle Lautstärke) / Volume for the announcement (empty = current volume)"
+                }
+              }
+            }
+          },
+          "presets": {
+            "title": "Preset-Belegung",
+            "description": "Belege die 6 Preset-Tasten mit eigenen Sendern",
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "properties": {
+                "slot": {
+                  "title": "Preset-Taste",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 6,
+                  "required": true,
+                  "description": "Welche Preset-Taste (1-6)"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string",
+                  "required": true,
+                  "description": "Anzeigename in HomeKit"
+                },
+                "type": {
+                  "title": "Typ",
+                  "type": "string",
+                  "required": true,
+                  "default": "radio",
+                  "oneOf": [
+                    {
+                      "title": "Internet Radio (HTTP Stream)",
+                      "enum": [
+                        "radio"
+                      ]
+                    },
+                    {
+                      "title": "Spotify",
+                      "enum": [
+                        "spotify"
+                      ]
+                    },
+                    {
+                      "title": "Amazon Music",
+                      "enum": [
+                        "amazon"
+                      ]
+                    },
+                    {
+                      "title": "Deezer",
+                      "enum": [
+                        "deezer"
+                      ]
+                    },
+                    {
+                      "title": "NAS/DLNA",
+                      "enum": [
+                        "nas"
+                      ]
+                    }
+                  ],
+                  "description": "Art der Quelle"
+                },
+                "url": {
+                  "title": "Stream URL",
+                  "type": "string",
+                  "description": "HTTP Stream URL für Radio"
+                },
+                "spotifyUri": {
+                  "title": "Spotify URI",
+                  "type": "string",
+                  "description": "Spotify URI (z.B. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)"
+                },
+                "contentId": {
+                  "title": "Content ID",
+                  "type": "string",
+                  "description": "Content ID für Amazon oder Deezer"
+                },
+                "sourceAccount": {
+                  "title": "Account",
+                  "type": "string",
+                  "description": "Account-Identifier für Spotify/Amazon/Deezer/NAS"
+                },
+                "nasLocation": {
+                  "title": "NAS Location",
+                  "type": "string",
+                  "description": "DLNA Object-ID für NAS-Ordner (wird über Browser ausgewählt)"
+                },
+                "nasServer": {
+                  "title": "NAS Server",
+                  "type": "string",
+                  "description": "DLNA Server-ID (wird automatisch gesetzt)"
+                },
+                "shuffle": {
+                  "title": "Shuffle",
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Titel in zufälliger Reihenfolge abspielen (nur NAS/DLNA) / Play tracks in random order (NAS/DLNA only)"
+                }
+              }
+            }
+          }
+        }
+      },
       "devices": {
         "title": "Geräte",
-        "description": "Geräte werden automatisch erkannt. Hier kannst du pro Gerät Icon und Presets konfigurieren.",
+        "description": "Geräte werden automatisch erkannt. Hier kannst du pro Gerät Werte setzen, die die globalen Einstellungen überschreiben.",
         "type": "array",
         "items": {
           "type": "object",
@@ -60,39 +424,111 @@
             "deviceIcon": {
               "title": "Geräte-Icon",
               "type": "integer",
-              "default": 34,
               "oneOf": [
-                { "title": "Audio Receiver", "enum": [34] },
-                { "title": "Speaker (Lautsprecher)", "enum": [26] },
-                { "title": "Television (TV)", "enum": [31] },
-                { "title": "TV Set Top Box", "enum": [35] },
-                { "title": "TV Streaming Stick", "enum": [36] },
-                { "title": "AirPlay Speaker", "enum": [38] },
-                { "title": "HomePod", "enum": [39] },
-                { "title": "Airport", "enum": [27] },
-                { "title": "Lightbulb", "enum": [5] },
-                { "title": "Switch", "enum": [8] },
-                { "title": "Outlet", "enum": [7] },
-                { "title": "Fan", "enum": [3] },
-                { "title": "Other", "enum": [1] }
+                {
+                  "title": "Audio Receiver",
+                  "enum": [
+                    34
+                  ]
+                },
+                {
+                  "title": "Speaker (Lautsprecher)",
+                  "enum": [
+                    26
+                  ]
+                },
+                {
+                  "title": "Television (TV)",
+                  "enum": [
+                    31
+                  ]
+                },
+                {
+                  "title": "TV Set Top Box",
+                  "enum": [
+                    35
+                  ]
+                },
+                {
+                  "title": "TV Streaming Stick",
+                  "enum": [
+                    36
+                  ]
+                },
+                {
+                  "title": "AirPlay Speaker",
+                  "enum": [
+                    38
+                  ]
+                },
+                {
+                  "title": "HomePod",
+                  "enum": [
+                    39
+                  ]
+                },
+                {
+                  "title": "Airport",
+                  "enum": [
+                    27
+                  ]
+                },
+                {
+                  "title": "Lightbulb",
+                  "enum": [
+                    5
+                  ]
+                },
+                {
+                  "title": "Switch",
+                  "enum": [
+                    8
+                  ]
+                },
+                {
+                  "title": "Outlet",
+                  "enum": [
+                    7
+                  ]
+                },
+                {
+                  "title": "Fan",
+                  "enum": [
+                    3
+                  ]
+                },
+                {
+                  "title": "Other",
+                  "enum": [
+                    1
+                  ]
+                }
               ],
-              "description": "Icon für dieses Gerät in der Home App"
+              "description": "Icon für dieses Gerät in der Home App (leer = globale Einstellung / empty = global default)"
             },
             "autoResume": {
               "title": "Auto-Resume",
               "type": "boolean",
-              "default": false,
-              "description": "Letztes Preset automatisch abspielen beim Einschalten / Resume last preset on power on"
+              "description": "Letztes Preset automatisch abspielen beim Einschalten / Resume last preset on power on (leer = globale Einstellung / empty = global default)"
             },
             "presetDisplay": {
               "title": "Preset-Anzeige / Preset Display",
               "type": "string",
-              "default": "menu",
               "oneOf": [
-                { "title": "Menü / Menu (Dropdown)", "enum": ["menu"] },
-                { "title": "Einzelne Buttons / Separate Buttons", "enum": ["buttons"] }
+                {
+                  "title": "Menü / Menu (Dropdown)",
+                  "enum": [
+                    "menu"
+                  ]
+                },
+                {
+                  "title": "Einzelne Buttons / Separate Buttons",
+                  "enum": [
+                    "buttons"
+                  ]
+                }
               ],
-              "description": "Presets als Dropdown-Menü oder einzelne Schalter in HomeKit / Show presets as dropdown menu or separate switches"
+              "description": "Presets als Dropdown-Menü oder einzelne Schalter in HomeKit / Show presets as dropdown menu or separate switches (leer = globale Einstellung / empty = global default)"
             },
             "volumeName": {
               "title": "Volume Name",
@@ -115,8 +551,7 @@
             "multiRoomEnabled": {
               "title": "Enable Multi-Room",
               "type": "boolean",
-              "default": true,
-              "description": "Multi-Room-Schalter anzeigen / Show the Multi-Room switch"
+              "description": "Multi-Room-Schalter anzeigen / Show the Multi-Room switch (leer = globale Einstellung / empty = global default)"
             },
             "multiRoomPreset": {
               "title": "Multi-Room Preset-Taste / Multi-Room Preset Button",
@@ -128,8 +563,7 @@
             "tvSourceEnabled": {
               "title": "Enable TV Source",
               "type": "boolean",
-              "default": false,
-              "description": "TV-Source-Schalter und Menü-Eintrag anzeigen / Show the TV Source switch and input menu entry"
+              "description": "TV-Source-Schalter und Menü-Eintrag anzeigen / Show the TV Source switch and input menu entry (leer = globale Einstellung / empty = global default)"
             },
             "tvSourceName": {
               "title": "TV Source Name",
@@ -140,14 +574,12 @@
             "tvSourceMomentary": {
               "title": "TV Source Momentary",
               "type": "boolean",
-              "default": false,
-              "description": "TV Source als Taster: Antippen wählt den TV-Eingang, Schalter springt zurück / TV Source as momentary button: tap selects TV input, switch resets itself"
+              "description": "TV Source als Taster: Antippen wählt den TV-Eingang, Schalter springt zurück / TV Source as momentary button: tap selects TV input, switch resets itself (leer = globale Einstellung / empty = global default)"
             },
             "offInputEnabled": {
               "title": "Enable Off Input",
               "type": "boolean",
-              "default": false,
-              "description": "\"Off\"-Eintrag im Eingangsmenü zum Ausschalten / \"Off\" entry in the input menu to power down"
+              "description": "\"Off\"-Eintrag im Eingangsmenü zum Ausschalten / \"Off\" entry in the input menu to power down (leer = globale Einstellung / empty = global default)"
             },
             "offName": {
               "title": "Off Input Name",
@@ -158,8 +590,7 @@
             "partyModeEnabled": {
               "title": "Enable Party Mode",
               "type": "boolean",
-              "default": false,
-              "description": "Party-Modus-Schalter: gruppiert alle Lautsprecher mit einem Tipp / Party Mode switch: groups all speakers with one tap"
+              "description": "Party-Modus-Schalter: gruppiert alle Lautsprecher mit einem Tipp / Party Mode switch: groups all speakers with one tap (leer = globale Einstellung / empty = global default)"
             },
             "partyModeName": {
               "title": "Party Mode Name",
@@ -170,8 +601,7 @@
             "playingSensorEnabled": {
               "title": "Enable Playing Sensor",
               "type": "boolean",
-              "default": false,
-              "description": "Belegungssensor der anzeigt ob Musik läuft - für HomeKit-Automationen / Occupancy sensor that shows when music is playing - for HomeKit automations"
+              "description": "Belegungssensor der anzeigt ob Musik läuft - für HomeKit-Automationen / Occupancy sensor that shows when music is playing - for HomeKit automations (leer = globale Einstellung / empty = global default)"
             },
             "playingSensorName": {
               "title": "Playing Sensor Name",
@@ -195,8 +625,7 @@
             "auxEnabled": {
               "title": "Enable AUX",
               "type": "boolean",
-              "default": true,
-              "description": "AUX-Eingang in HomeKit anzeigen / Show AUX input in HomeKit"
+              "description": "AUX-Eingang in HomeKit anzeigen / Show AUX input in HomeKit (leer = globale Einstellung / empty = global default)"
             },
             "bluetoothName": {
               "title": "Bluetooth Name",
@@ -207,8 +636,7 @@
             "bluetoothEnabled": {
               "title": "Enable Bluetooth",
               "type": "boolean",
-              "default": true,
-              "description": "Bluetooth-Eingang in HomeKit anzeigen / Show Bluetooth input in HomeKit"
+              "description": "Bluetooth-Eingang in HomeKit anzeigen / Show Bluetooth input in HomeKit (leer = globale Einstellung / empty = global default)"
             },
             "announcements": {
               "title": "Ansagen / Announcements",
@@ -267,11 +695,36 @@
                     "required": true,
                     "default": "radio",
                     "oneOf": [
-                      { "title": "Internet Radio (HTTP Stream)", "enum": ["radio"] },
-                      { "title": "Spotify", "enum": ["spotify"] },
-                      { "title": "Amazon Music", "enum": ["amazon"] },
-                      { "title": "Deezer", "enum": ["deezer"] },
-                      { "title": "NAS/DLNA", "enum": ["nas"] }
+                      {
+                        "title": "Internet Radio (HTTP Stream)",
+                        "enum": [
+                          "radio"
+                        ]
+                      },
+                      {
+                        "title": "Spotify",
+                        "enum": [
+                          "spotify"
+                        ]
+                      },
+                      {
+                        "title": "Amazon Music",
+                        "enum": [
+                          "amazon"
+                        ]
+                      },
+                      {
+                        "title": "Deezer",
+                        "enum": [
+                          "deezer"
+                        ]
+                      },
+                      {
+                        "title": "NAS/DLNA",
+                        "enum": [
+                          "nas"
+                        ]
+                      }
                     ],
                     "description": "Art der Quelle"
                   },
@@ -328,6 +781,75 @@
       "items": [
         "autoDiscover",
         "discoveryTimeout"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Globale Einstellungen / Global Defaults",
+      "description": "Gelten für alle Geräte; pro Gerät überschreibbar. / Apply to all devices; overridable per device.",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "defaults.deviceIcon",
+        "defaults.autoResume",
+        "defaults.presetDisplay",
+        "defaults.volumeName",
+        "defaults.bassName",
+        "defaults.multiRoomName",
+        "defaults.multiRoomEnabled",
+        "defaults.multiRoomPreset",
+        "defaults.tvSourceEnabled",
+        "defaults.tvSourceName",
+        "defaults.tvSourceMomentary",
+        "defaults.offInputEnabled",
+        "defaults.offName",
+        "defaults.partyModeEnabled",
+        "defaults.partyModeName",
+        "defaults.playingSensorEnabled",
+        "defaults.playingSensorName",
+        "defaults.maxVolume",
+        "defaults.auxName",
+        "defaults.auxEnabled",
+        "defaults.bluetoothName",
+        "defaults.bluetoothEnabled",
+        {
+          "type": "fieldset",
+          "title": "Globale Presets / Global Presets",
+          "expandable": true,
+          "items": [
+            {
+              "key": "defaults.presets",
+              "type": "array",
+              "buttonText": "Preset hinzufügen",
+              "items": [
+                "defaults.presets[].slot",
+                "defaults.presets[].name",
+                "defaults.presets[].type",
+                "defaults.presets[].url",
+                "defaults.presets[].spotifyUri",
+                "defaults.presets[].contentId",
+                "defaults.presets[].sourceAccount"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "fieldset",
+          "title": "Globale Ansagen / Global Announcements",
+          "expandable": true,
+          "items": [
+            {
+              "key": "defaults.announcements",
+              "type": "array",
+              "buttonText": "Ansage hinzufügen",
+              "items": [
+                "defaults.announcements[].name",
+                "defaults.announcements[].url",
+                "defaults.announcements[].volume"
+              ]
+            }
+          ]
+        }
       ]
     },
     {

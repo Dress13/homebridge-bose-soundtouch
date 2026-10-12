@@ -174,6 +174,65 @@
       font-size: 18px;
     }
 
+    /* Option groups */
+    .opt-group {
+      margin-bottom: 18px;
+      padding: 12px 15px 2px;
+      border: 1px solid var(--hb-border-color, #dee2e6);
+      border-radius: 6px;
+    }
+    .opt-group h5 {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6c757d;
+    }
+    .opt-group > small {
+      display: block;
+      margin: -6px 0 10px;
+      color: #6c757d;
+    }
+    .opt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0 15px;
+    }
+    .opt-grid .form-group { min-width: 0; }
+    .opt-grid .form-group label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Global defaults */
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .global-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      margin-left: 6px;
+      border-radius: 10px;
+      background: #6c757d;
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      vertical-align: middle;
+    }
+    .global-badge:empty { display: none; }
+    .preset-item.inherited {
+      opacity: 0.75;
+      border-style: dashed;
+    }
+    .preset-item.inherited .preset-header { margin-bottom: 0; }
+    .preset-item.inherited .btn { padding: 4px 12px; font-size: 12px; background: #e9ecef; }
+
     /* No devices */
     .no-devices {
       text-align: center;
@@ -317,6 +376,20 @@
     </div>
   </div>
 
+  <!-- Global Defaults (apply to all devices, overridable per device) -->
+  <div class="section">
+    <div class="collapsible-header" onclick="toggleGlobalDefaults()">
+      <h4 style="margin: 0;">Defaults for all devices <span id="globalDefaultsBadge" class="global-badge"></span></h4>
+      <span id="globalDefaultsArrow">▸</span>
+    </div>
+    <small style="display: block; margin-top: 6px; color: #6c757d;">
+      Everything set here applies to every speaker. Each device can override any single value
+      in its own tab (choose "Global" there to fall back to this default).
+      Presets and announcements are merged: a device preset on the same slot (or an announcement with the same name) replaces the global one.
+    </small>
+    <div id="globalOptions" style="display: none; margin-top: 15px;"></div>
+  </div>
+
   <!-- Devices Section -->
   <div class="section">
     <h3>Devices</h3>
@@ -381,10 +454,11 @@
       // Clean up: Remove devices without host
       config.devices = config.devices.filter(d => d.host && d.host.trim());
 
-      // Clean up: Remove empty presets
-      config.devices.forEach(device => {
-        if (device.presets) {
-          device.presets = device.presets.filter(p => p.slot && p.name);
+      // Clean up: Remove empty presets (devices and global defaults)
+      const scopes = config.defaults ? [...config.devices, config.defaults] : config.devices;
+      scopes.forEach(target => {
+        if (target.presets) {
+          target.presets = target.presets.filter(p => p.slot && p.name);
         }
       });
     }
@@ -396,6 +470,13 @@
       // Clean up old volumeAsLightbulb setting if present
       delete config.volumeAsLightbulb;
 
+      // Drop empty global defaults so the config stays tidy
+      if (config.defaults) {
+        if (Array.isArray(config.defaults.presets) && config.defaults.presets.length === 0) delete config.defaults.presets;
+        if (Array.isArray(config.defaults.announcements) && config.defaults.announcements.length === 0) delete config.defaults.announcements;
+        if (Object.keys(config.defaults).length === 0) delete config.defaults;
+      }
+
       try {
         await homebridge.updatePluginConfig([config]);
         await homebridge.savePluginConfig();
@@ -405,9 +486,248 @@
       }
     }
 
+    // Built-in defaults used by the plugin when neither device nor global config sets a value
+    const BUILTIN = {
+      deviceIcon: 34, autoResume: false, presetDisplay: 'menu',
+      volumeName: 'Lautstärke', bassName: 'Bass',
+      multiRoomName: 'Multi-Room', multiRoomEnabled: true, multiRoomPreset: undefined,
+      tvSourceEnabled: false, tvSourceName: 'TV Source', tvSourceMomentary: false,
+      offInputEnabled: false, offName: 'Off',
+      partyModeEnabled: false, partyModeName: 'Party-Modus',
+      playingSensorEnabled: false, playingSensorName: 'Wiedergabe',
+      maxVolume: undefined,
+      auxName: 'AUX Eingang', auxEnabled: true,
+      bluetoothName: 'Bluetooth', bluetoothEnabled: true,
+    };
+
+    const ICON_OPTIONS = [
+      [34, 'Audio Receiver'], [26, 'Speaker'], [31, 'Television (TV)'], [35, 'TV Set Top Box'],
+      [36, 'TV Streaming Stick'], [38, 'AirPlay Speaker'], [39, 'HomePod'], [27, 'Airport'],
+      [5, 'Lightbulb'], [8, 'Switch'], [7, 'Outlet'], [3, 'Fan'], [1, 'Other'],
+    ];
+
+    let globalDefaultsOpen = false;
+
+    function toggleGlobalDefaults() {
+      globalDefaultsOpen = !globalDefaultsOpen;
+      render();
+    }
+
+    // scope: 'global' or a device index
+    function targetOf(scope) {
+      if (scope === 'global') {
+        if (!config.defaults) config.defaults = {};
+        return config.defaults;
+      }
+      return config.devices[scope];
+    }
+
+    // How the scope is written into inline onclick/onchange handlers
+    function scopeArg(scope) {
+      return scope === 'global' ? "'global'" : scope;
+    }
+
+    function isSet(v) {
+      return v !== undefined && v !== null && !(typeof v === 'string' && v.trim() === '');
+    }
+
+    // Value that applies when a device does not set the field itself
+    function globalValue(field) {
+      const g = config.defaults || {};
+      return isSet(g[field]) ? g[field] : BUILTIN[field];
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    // Select with "Global (…)" option in device scope. options: [[value, label], ...]
+    function selectField(scope, field, label, options, type) {
+      const current = targetOf(scope)[field];
+      const labelOf = (v) => (options.find(o => String(o[0]) === String(v)) || [v, String(v)])[1];
+      let html = `<div class="form-group"><label>${label}</label>` +
+        `<select onchange="setOpt(${scopeArg(scope)}, '${field}', this.value, '${type}')">`;
+      if (scope === 'global') {
+        const builtin = BUILTIN[field];
+        const selected = isSet(current) ? current : builtin;
+        if (builtin === undefined) {
+          html += `<option value="" ${!isSet(current) ? 'selected' : ''}>Off</option>`;
+        }
+        for (const [v, l] of options) {
+          html += `<option value="${v}" ${String(selected) === String(v) ? 'selected' : ''}>${l}</option>`;
+        }
+      } else {
+        const gv = globalValue(field);
+        const gLabel = gv === undefined ? 'Off' : labelOf(gv);
+        html += `<option value="" ${!isSet(current) ? 'selected' : ''}>Global (${esc(gLabel)})</option>`;
+        for (const [v, l] of options) {
+          html += `<option value="${v}" ${isSet(current) && String(current) === String(v) ? 'selected' : ''}>${l}</option>`;
+        }
+      }
+      return html + '</select></div>';
+    }
+
+    function textField(scope, field, label) {
+      const current = targetOf(scope)[field];
+      const placeholder = scope === 'global'
+        ? (BUILTIN[field] || '')
+        : `Global: ${globalValue(field) || ''}`;
+      return `<div class="form-group"><label>${label}</label>` +
+        `<input type="text" value="${esc(isSet(current) ? current : '')}" placeholder="${esc(placeholder)}" ` +
+        `onchange="setOpt(${scopeArg(scope)}, '${field}', this.value, 'str')"></div>`;
+    }
+
+    function numberField(scope, field, label, min, max, emptyLabel) {
+      const current = targetOf(scope)[field];
+      const gv = globalValue(field);
+      const placeholder = scope === 'global' ? emptyLabel : `Global: ${gv === undefined ? emptyLabel : gv}`;
+      return `<div class="form-group"><label>${label}</label>` +
+        `<input type="number" min="${min}" max="${max}" value="${isSet(current) ? current : ''}" placeholder="${esc(placeholder)}" ` +
+        `onchange="setOpt(${scopeArg(scope)}, '${field}', this.value, 'int')"></div>`;
+    }
+
+    function setOpt(scope, field, raw, type) {
+      const target = targetOf(scope);
+      let value;
+      if (raw === '' || raw === undefined || raw === null) {
+        value = undefined;
+      } else if (type === 'bool') {
+        value = raw === 'true';
+      } else if (type === 'int') {
+        value = parseInt(raw);
+        if (isNaN(value)) value = undefined;
+      } else {
+        value = raw;
+      }
+      if (value === undefined) {
+        delete target[field];
+      } else {
+        target[field] = value;
+      }
+      saveConfig();
+      render();
+    }
+
+    const ENABLED = [['true', 'Enabled'], ['false', 'Disabled']];
+
+    // Shared option form for global defaults and per-device settings
+    function renderOptions(scope) {
+      const presetSlots = [1, 2, 3, 4, 5, 6].map(n => [n, `Preset ${n} toggles Multi-Room`]);
+      const ON_OFF_SHORT = [['false', 'Disabled'], ['true', 'Enabled']];
+      return `
+          <div class="opt-group">
+            <h5>General</h5>
+            <div class="opt-grid">
+              ${selectField(scope, 'deviceIcon', 'Device Icon', ICON_OPTIONS, 'int')}
+              ${selectField(scope, 'presetDisplay', 'Preset Display', [['menu', 'Menu (Dropdown)'], ['buttons', 'Separate Buttons']], 'str')}
+              ${selectField(scope, 'autoResume', 'Auto-Resume', [['false', 'Off'], ['true', 'On - Resume last preset on power on']], 'bool')}
+              ${numberField(scope, 'maxVolume', 'Max Volume (1-100)', 1, 100, 'No limit')}
+            </div>
+          </div>
+
+          <div class="opt-group">
+            <h5>Volume &amp; Bass</h5>
+            <small>HomeKit sorts tiles alphabetically by name - rename to control the order.</small>
+            <div class="opt-grid">
+              ${textField(scope, 'volumeName', 'Volume Name')}
+              ${textField(scope, 'bassName', 'Bass Name')}
+            </div>
+          </div>
+
+          <div class="opt-group">
+            <h5>Inputs</h5>
+            <div class="opt-grid">
+              ${selectField(scope, 'auxEnabled', 'AUX Input', ENABLED, 'bool')}
+              ${textField(scope, 'auxName', 'AUX Name')}
+              ${selectField(scope, 'bluetoothEnabled', 'Bluetooth Input', ENABLED, 'bool')}
+              ${textField(scope, 'bluetoothName', 'Bluetooth Name')}
+              ${selectField(scope, 'offInputEnabled', 'Off Input', ON_OFF_SHORT, 'bool')}
+              ${textField(scope, 'offName', 'Off Input Name')}
+            </div>
+          </div>
+
+          <div class="opt-group">
+            <h5>TV Source</h5>
+            <div class="opt-grid">
+              ${selectField(scope, 'tvSourceEnabled', 'TV Source', ON_OFF_SHORT, 'bool')}
+              ${textField(scope, 'tvSourceName', 'TV Source Name')}
+              ${selectField(scope, 'tvSourceMomentary', 'TV Source Mode', [['false', 'Toggle (shows state)'], ['true', 'Momentary (tap button)']], 'bool')}
+            </div>
+          </div>
+
+          <div class="opt-group">
+            <h5>Multi-Room &amp; Party Mode</h5>
+            <div class="opt-grid">
+              ${selectField(scope, 'multiRoomEnabled', 'Multi-Room Switch', ENABLED, 'bool')}
+              ${textField(scope, 'multiRoomName', 'Multi-Room Name')}
+              ${selectField(scope, 'multiRoomPreset', 'Multi-Room Hardware Button', presetSlots, 'int')}
+              ${selectField(scope, 'partyModeEnabled', 'Party Mode Switch', ON_OFF_SHORT, 'bool')}
+              ${textField(scope, 'partyModeName', 'Party Mode Name')}
+            </div>
+          </div>
+
+          <div class="opt-group">
+            <h5>Automations</h5>
+            <div class="opt-grid">
+              ${selectField(scope, 'playingSensorEnabled', 'Playing Sensor', ON_OFF_SHORT, 'bool')}
+              ${textField(scope, 'playingSensorName', 'Playing Sensor Name')}
+            </div>
+          </div>
+
+          <div class="presets-section">
+            <h4>${scope === 'global' ? 'Global Presets' : 'Configure Presets'}</h4>
+            <small style="display: block; margin-bottom: 15px; color: #6c757d;">
+              Assign radio stations or streaming content to preset buttons 1-6.
+              These work locally via DLNA after the Bose cloud shutdown.
+              ${scope === 'global' ? 'Global presets apply to every device unless the device defines the same slot itself.' : ''}
+            </small>
+            ${scope !== 'global' ? renderInheritedPresets(scope) : ''}
+            <div id="presets-${scope}">
+              ${renderPresets(scope)}
+            </div>
+            <button class="btn btn-success" onclick="addPreset(${scopeArg(scope)})" style="margin-top: 10px;">
+              + Add Preset
+            </button>
+          </div>
+
+          <div class="presets-section">
+            <h4>${scope === 'global' ? 'Global Announcements' : 'Announcements'}</h4>
+            <small style="display: block; margin-bottom: 15px; color: #6c757d;">
+              Momentary switches that play an audio URL (doorbell, TTS message) and
+              then restore the previous playback and volume.
+              ${scope === 'global' ? 'Global announcements apply to every device unless the device defines one with the same name.' : ''}
+            </small>
+            ${scope !== 'global' ? renderInheritedAnnouncements(scope) : ''}
+            <div id="announcements-${scope}">
+              ${renderAnnouncements(scope)}
+            </div>
+            <button class="btn btn-success" onclick="addAnnouncement(${scopeArg(scope)})" style="margin-top: 10px;">
+              + Add Announcement
+            </button>
+          </div>
+      `;
+    }
+
+    function countGlobalOverrides() {
+      const g = config.defaults || {};
+      let n = 0;
+      for (const [k, v] of Object.entries(g)) {
+        if (Array.isArray(v) ? v.length > 0 : isSet(v)) n++;
+      }
+      return n;
+    }
+
     function render() {
       // Global settings
       document.getElementById('autoDiscover').checked = config.autoDiscover !== false;
+
+      // Global defaults
+      const overrides = countGlobalOverrides();
+      document.getElementById('globalDefaultsBadge').textContent = overrides > 0 ? `${overrides} set` : '';
+      document.getElementById('globalDefaultsArrow').textContent = globalDefaultsOpen ? '▾' : '▸';
+      const globalOptions = document.getElementById('globalOptions');
+      globalOptions.style.display = globalDefaultsOpen ? 'block' : 'none';
+      globalOptions.innerHTML = globalDefaultsOpen ? renderOptions('global') : '';
 
       const tabsContainer = document.getElementById('deviceTabs');
       const contentsContainer = document.getElementById('deviceContents');
@@ -457,250 +777,130 @@
               <label>Name</label>
               <input type="text" value="${device.name || ''}" onchange="updateDevice(${i}, 'name', this.value)" placeholder="Auto from device">
             </div>
-          </div>
-
-          <div class="form-row">
             <div class="form-group">
               <label>Room</label>
               <input type="text" value="${device.room || ''}" onchange="updateDevice(${i}, 'room', this.value)" placeholder="Optional">
             </div>
-            <div class="form-group">
-              <label>Device Icon</label>
-              <select onchange="updateDevice(${i}, 'deviceIcon', parseInt(this.value))">
-                <option value="34" ${device.deviceIcon === 34 || !device.deviceIcon ? 'selected' : ''}>Audio Receiver</option>
-                <option value="26" ${device.deviceIcon === 26 ? 'selected' : ''}>Speaker</option>
-                <option value="31" ${device.deviceIcon === 31 ? 'selected' : ''}>Television (TV)</option>
-                <option value="35" ${device.deviceIcon === 35 ? 'selected' : ''}>TV Set Top Box</option>
-                <option value="36" ${device.deviceIcon === 36 ? 'selected' : ''}>TV Streaming Stick</option>
-                <option value="38" ${device.deviceIcon === 38 ? 'selected' : ''}>AirPlay Speaker</option>
-                <option value="39" ${device.deviceIcon === 39 ? 'selected' : ''}>HomePod</option>
-                <option value="27" ${device.deviceIcon === 27 ? 'selected' : ''}>Airport</option>
-                <option value="5" ${device.deviceIcon === 5 ? 'selected' : ''}>Lightbulb</option>
-                <option value="8" ${device.deviceIcon === 8 ? 'selected' : ''}>Switch</option>
-                <option value="7" ${device.deviceIcon === 7 ? 'selected' : ''}>Outlet</option>
-                <option value="3" ${device.deviceIcon === 3 ? 'selected' : ''}>Fan</option>
-                <option value="1" ${device.deviceIcon === 1 ? 'selected' : ''}>Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row" style="margin-bottom: 15px;">
-            <div class="form-group" style="flex: 1 1 200px;">
-              <label>Auto-Resume</label>
-              <select onchange="updateDevice(${i}, 'autoResume', this.value === 'true')">
-                <option value="false" ${!device.autoResume ? 'selected' : ''}>Off</option>
-                <option value="true" ${device.autoResume ? 'selected' : ''}>On - Resume last preset on power on</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 200px;">
-              <label>Preset Display</label>
-              <select onchange="updateDevice(${i}, 'presetDisplay', this.value)">
-                <option value="menu" ${!device.presetDisplay || device.presetDisplay === 'menu' ? 'selected' : ''}>Menu (Dropdown)</option>
-                <option value="buttons" ${device.presetDisplay === 'buttons' ? 'selected' : ''}>Separate Buttons</option>
-              </select>
-            </div>
           </div>
 
           <small style="display: block; margin-bottom: 10px; color: #6c757d;">
-            HomeKit sorts tiles alphabetically by name!
+            "Global" uses the value from "Defaults for all devices". Pick anything else to override it for this speaker only.
           </small>
-          <div class="form-row" style="margin-bottom: 15px;">
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Volume Name</label>
-              <input type="text" value="${device.volumeName || ''}" onchange="updateDevice(${i}, 'volumeName', this.value)" placeholder="Volume">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Bass Name</label>
-              <input type="text" value="${device.bassName || ''}" onchange="updateDevice(${i}, 'bassName', this.value)" placeholder="Bass">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Multi-Room Name</label>
-              <input type="text" value="${device.multiRoomName || ''}" onchange="updateDevice(${i}, 'multiRoomName', this.value)" placeholder="Multi-Room">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Multi-Room</label>
-              <select onchange="updateDevice(${i}, 'multiRoomEnabled', this.value === 'true')">
-                <option value="true" ${device.multiRoomEnabled !== false ? 'selected' : ''}>Enabled</option>
-                <option value="false" ${device.multiRoomEnabled === false ? 'selected' : ''}>Disabled</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>TV Source</label>
-              <select onchange="updateDevice(${i}, 'tvSourceEnabled', this.value === 'true')">
-                <option value="false" ${device.tvSourceEnabled !== true ? 'selected' : ''}>Disabled</option>
-                <option value="true" ${device.tvSourceEnabled === true ? 'selected' : ''}>Enabled</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>TV Source Name</label>
-              <input type="text" value="${device.tvSourceName || ''}" onchange="updateDevice(${i}, 'tvSourceName', this.value)" placeholder="TV Source">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>TV Source Mode</label>
-              <select onchange="updateDevice(${i}, 'tvSourceMomentary', this.value === 'true')">
-                <option value="false" ${device.tvSourceMomentary !== true ? 'selected' : ''}>Toggle (shows state)</option>
-                <option value="true" ${device.tvSourceMomentary === true ? 'selected' : ''}>Momentary (tap button)</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Off Input</label>
-              <select onchange="updateDevice(${i}, 'offInputEnabled', this.value === 'true')">
-                <option value="false" ${device.offInputEnabled !== true ? 'selected' : ''}>Disabled</option>
-                <option value="true" ${device.offInputEnabled === true ? 'selected' : ''}>Enabled - Off entry in input menu</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Off Input Name</label>
-              <input type="text" value="${device.offName || ''}" onchange="updateDevice(${i}, 'offName', this.value)" placeholder="Off">
-            </div>
-          </div>
 
-          <div class="form-row" style="margin-bottom: 15px;">
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Party Mode</label>
-              <select onchange="updateDevice(${i}, 'partyModeEnabled', this.value === 'true')">
-                <option value="false" ${device.partyModeEnabled !== true ? 'selected' : ''}>Disabled</option>
-                <option value="true" ${device.partyModeEnabled === true ? 'selected' : ''}>Enabled - Switch groups all speakers</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Party Mode Name</label>
-              <input type="text" value="${device.partyModeName || ''}" onchange="updateDevice(${i}, 'partyModeName', this.value)" placeholder="Party-Modus">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Playing Sensor</label>
-              <select onchange="updateDevice(${i}, 'playingSensorEnabled', this.value === 'true')">
-                <option value="false" ${device.playingSensorEnabled !== true ? 'selected' : ''}>Disabled</option>
-                <option value="true" ${device.playingSensorEnabled === true ? 'selected' : ''}>Enabled - For automations</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Playing Sensor Name</label>
-              <input type="text" value="${device.playingSensorName || ''}" onchange="updateDevice(${i}, 'playingSensorName', this.value)" placeholder="Wiedergabe">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Max Volume (1-100)</label>
-              <input type="number" min="1" max="100" value="${device.maxVolume || ''}" onchange="updateDevice(${i}, 'maxVolume', this.value ? parseInt(this.value) : undefined)" placeholder="No limit">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Multi-Room Button</label>
-              <select onchange="updateDevice(${i}, 'multiRoomPreset', this.value ? parseInt(this.value) : undefined)">
-                <option value="" ${!device.multiRoomPreset ? 'selected' : ''}>Off</option>
-                ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${device.multiRoomPreset === n ? 'selected' : ''}>Preset ${n} toggles Multi-Room</option>`).join('')}
-              </select>
-            </div>
-          </div>
+          ${renderOptions(i)}
+        </div>
+      `).join('');
+    }
 
-          <div class="form-row" style="margin-bottom: 15px;">
-            <div class="form-group" style="flex: 1 1 200px;">
-              <label>AUX Name</label>
-              <input type="text" value="${device.auxName || ''}" onchange="updateDevice(${i}, 'auxName', this.value)" placeholder="AUX Eingang">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>AUX Input</label>
-              <select onchange="updateDevice(${i}, 'auxEnabled', this.value === 'true')">
-                <option value="true" ${device.auxEnabled !== false ? 'selected' : ''}>Enabled</option>
-                <option value="false" ${device.auxEnabled === false ? 'selected' : ''}>Disabled</option>
-              </select>
-            </div>
-            <div class="form-group" style="flex: 1 1 200px;">
-              <label>Bluetooth Name</label>
-              <input type="text" value="${device.bluetoothName || ''}" onchange="updateDevice(${i}, 'bluetoothName', this.value)" placeholder="Bluetooth">
-            </div>
-            <div class="form-group" style="flex: 1 1 150px;">
-              <label>Bluetooth Input</label>
-              <select onchange="updateDevice(${i}, 'bluetoothEnabled', this.value === 'true')">
-                <option value="true" ${device.bluetoothEnabled !== false ? 'selected' : ''}>Enabled</option>
-                <option value="false" ${device.bluetoothEnabled === false ? 'selected' : ''}>Disabled</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="presets-section">
-            <h4>Configure Presets</h4>
-            <small style="display: block; margin-bottom: 15px; color: #6c757d;">
-              Assign radio stations or streaming content to preset buttons 1-6.
-              These work locally via DLNA after the Bose cloud shutdown.
-            </small>
-            <div id="presets-${i}">
-              ${renderPresets(device, i)}
-            </div>
-            <button class="btn btn-success" onclick="addPreset(${i})" style="margin-top: 10px;">
-              + Add Preset
-            </button>
-          </div>
-
-          <div class="presets-section">
-            <h4>Announcements</h4>
-            <small style="display: block; margin-bottom: 15px; color: #6c757d;">
-              Momentary switches that play an audio URL (doorbell, TTS message) and
-              then restore the previous playback and volume.
-            </small>
-            <div id="announcements-${i}">
-              ${renderAnnouncements(device, i)}
-            </div>
-            <button class="btn btn-success" onclick="addAnnouncement(${i})" style="margin-top: 10px;">
-              + Add Announcement
-            </button>
+    // Global presets not overridden by this device, shown read-only with an "Override" action
+    function renderInheritedPresets(deviceIndex) {
+      const globalPresets = (config.defaults && config.defaults.presets) || [];
+      const localSlots = (config.devices[deviceIndex].presets || []).map(p => p.slot);
+      const inherited = globalPresets.filter(p => p.slot && p.name && !localSlots.includes(p.slot));
+      if (inherited.length === 0) return '';
+      return inherited.map(p => `
+        <div class="preset-item inherited">
+          <div class="preset-header">
+            <span class="preset-title">Preset ${p.slot}: ${esc(p.name)} <span class="global-badge">global</span></span>
+            <button class="btn" onclick="overridePreset(${deviceIndex}, ${p.slot})" title="Copy to this device to edit">Override</button>
           </div>
         </div>
       `).join('');
     }
 
-    function renderAnnouncements(device, deviceIndex) {
-      if (!device.announcements || device.announcements.length === 0) {
+    function renderInheritedAnnouncements(deviceIndex) {
+      const globalAnnouncements = (config.defaults && config.defaults.announcements) || [];
+      const localNames = (config.devices[deviceIndex].announcements || []).map(a => a.name);
+      const inherited = globalAnnouncements.filter(a => a.name && !localNames.includes(a.name));
+      if (inherited.length === 0) return '';
+      return inherited.map(a => `
+        <div class="preset-item inherited">
+          <div class="preset-header">
+            <span class="preset-title">${esc(a.name)} <span class="global-badge">global</span></span>
+            <button class="btn" onclick="overrideAnnouncement(${deviceIndex}, '${esc(a.name)}')" title="Copy to this device to edit">Override</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function overridePreset(deviceIndex, slot) {
+      const source = (config.defaults.presets || []).find(p => p.slot === slot);
+      if (!source) return;
+      const device = config.devices[deviceIndex];
+      if (!device.presets) device.presets = [];
+      device.presets.push(JSON.parse(JSON.stringify(source)));
+      saveConfig();
+      render();
+    }
+
+    function overrideAnnouncement(deviceIndex, name) {
+      const source = (config.defaults.announcements || []).find(a => a.name === name);
+      if (!source) return;
+      const device = config.devices[deviceIndex];
+      if (!device.announcements) device.announcements = [];
+      device.announcements.push(JSON.parse(JSON.stringify(source)));
+      saveConfig();
+      render();
+    }
+
+    function renderAnnouncements(scope) {
+      const target = targetOf(scope);
+      const s = scopeArg(scope);
+      if (!target.announcements || target.announcements.length === 0) {
         return '<p style="color: #6c757d; font-style: italic;">No announcements configured.</p>';
       }
 
-      return device.announcements.map((announcement, ai) => `
+      return target.announcements.map((announcement, ai) => `
         <div class="preset-item">
           <div class="preset-header">
             <span class="preset-title">${announcement.name || 'Unnamed'}</span>
-            <button class="preset-remove" onclick="removeAnnouncement(${deviceIndex}, ${ai})">×</button>
+            <button class="preset-remove" onclick="removeAnnouncement(${s}, ${ai})">×</button>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Name</label>
-              <input type="text" value="${announcement.name || ''}" onchange="updateAnnouncement(${deviceIndex}, ${ai}, 'name', this.value)" placeholder="e.g. Doorbell">
+              <input type="text" value="${announcement.name || ''}" onchange="updateAnnouncement(${s}, ${ai}, 'name', this.value)" placeholder="e.g. Doorbell">
             </div>
             <div class="form-group">
               <label>Volume (optional)</label>
-              <input type="number" min="1" max="100" value="${announcement.volume || ''}" onchange="updateAnnouncement(${deviceIndex}, ${ai}, 'volume', this.value ? parseInt(this.value) : undefined)" placeholder="Current volume">
+              <input type="number" min="1" max="100" value="${announcement.volume || ''}" onchange="updateAnnouncement(${s}, ${ai}, 'volume', this.value ? parseInt(this.value) : undefined)" placeholder="Current volume">
             </div>
           </div>
           <div class="form-group">
             <label>Audio URL</label>
-            <input type="text" value="${announcement.url || ''}" onchange="updateAnnouncement(${deviceIndex}, ${ai}, 'url', this.value)" placeholder="http://...">
+            <input type="text" value="${announcement.url || ''}" onchange="updateAnnouncement(${s}, ${ai}, 'url', this.value)" placeholder="http://...">
           </div>
         </div>
       `).join('');
     }
 
-    function renderPresets(device, deviceIndex) {
-      if (!device.presets || device.presets.length === 0) {
+    function renderPresets(scope) {
+      const target = targetOf(scope);
+      const s = scopeArg(scope);
+      if (!target.presets || target.presets.length === 0) {
         return '<p style="color: #6c757d; font-style: italic;">No presets configured.</p>';
       }
 
-      return device.presets.map((preset, pi) => `
+      return target.presets.map((preset, pi) => `
         <div class="preset-item">
           <div class="preset-header">
             <span class="preset-title">Preset ${preset.slot || '?'}: ${preset.name || 'Unnamed'}</span>
-            <button class="preset-remove" onclick="removePreset(${deviceIndex}, ${pi})">×</button>
+            <button class="preset-remove" onclick="removePreset(${s}, ${pi})">×</button>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Button (1-6)</label>
-              <select onchange="updatePreset(${deviceIndex}, ${pi}, 'slot', parseInt(this.value))">
+              <select onchange="updatePreset(${s}, ${pi}, 'slot', parseInt(this.value))">
                 ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${preset.slot === n ? 'selected' : ''}>${n}</option>`).join('')}
               </select>
             </div>
             <div class="form-group">
               <label>Name</label>
-              <input type="text" value="${preset.name || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'name', this.value)" placeholder="e.g. SWR3">
+              <input type="text" value="${preset.name || ''}" onchange="updatePreset(${s}, ${pi}, 'name', this.value)" placeholder="e.g. SWR3">
             </div>
             <div class="form-group">
               <label>Type</label>
-              <select onchange="updatePreset(${deviceIndex}, ${pi}, 'type', this.value)">
+              <select onchange="updatePreset(${s}, ${pi}, 'type', this.value)">
                 <option value="radio" ${preset.type === 'radio' ? 'selected' : ''}>Internet Radio (HTTP)</option>
                 <option value="spotify" ${preset.type === 'spotify' ? 'selected' : ''}>Spotify</option>
                 <option value="amazon" ${preset.type === 'amazon' ? 'selected' : ''}>Amazon Music</option>
@@ -712,25 +912,25 @@
           ${preset.type === 'radio' ? `
             <div class="form-group">
               <label>Stream URL</label>
-              <input type="text" value="${preset.url || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'url', this.value)" placeholder="http://...">
+              <input type="text" value="${preset.url || ''}" onchange="updatePreset(${s}, ${pi}, 'url', this.value)" placeholder="http://...">
             </div>
           ` : ''}
           ${preset.type === 'spotify' ? `
             <div class="form-group">
               <label>Spotify URI</label>
-              <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:...">
+              <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${s}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:...">
             </div>
           ` : ''}
           ${['amazon', 'deezer'].includes(preset.type) ? `
             <div class="form-group">
               <label>Content ID</label>
-              <input type="text" value="${preset.contentId || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'contentId', this.value)">
+              <input type="text" value="${preset.contentId || ''}" onchange="updatePreset(${s}, ${pi}, 'contentId', this.value)">
             </div>
           ` : ''}
           ${['spotify', 'amazon', 'deezer'].includes(preset.type) ? `
             <div class="form-group">
               <label>Account</label>
-              <input type="text" value="${preset.sourceAccount || ''}" onchange="updatePreset(${deviceIndex}, ${pi}, 'sourceAccount', this.value)">
+              <input type="text" value="${preset.sourceAccount || ''}" onchange="updatePreset(${s}, ${pi}, 'sourceAccount', this.value)">
             </div>
           ` : ''}
           ${preset.type === 'nas' ? `
@@ -738,13 +938,13 @@
               <label>NAS Folder/Album</label>
               <div style="display: flex; gap: 10px;">
                 <input type="text" value="${preset.nasLocation ? (preset.name || 'Selected') : ''}" readonly placeholder="Not selected yet" style="flex: 1; background: #f8f9fa;">
-                <button class="btn btn-primary" onclick="openNasBrowser(${deviceIndex}, ${pi})">Browse</button>
+                <button class="btn btn-primary" onclick="openNasBrowser(${s}, ${pi})">Browse</button>
               </div>
               <small>Server: ${preset.nasServer || 'Not set'}</small>
             </div>
             <div class="form-group">
               <label>Playback Order</label>
-              <select onchange="updatePreset(${deviceIndex}, ${pi}, 'shuffle', this.value === 'true')">
+              <select onchange="updatePreset(${s}, ${pi}, 'shuffle', this.value === 'true')">
                 <option value="false" ${preset.shuffle !== true ? 'selected' : ''}>In order</option>
                 <option value="true" ${preset.shuffle === true ? 'selected' : ''}>Shuffle (random order)</option>
               </select>
@@ -789,50 +989,52 @@
       render();
     }
 
-    function addPreset(deviceIndex) {
-      if (!config.devices[deviceIndex].presets) {
-        config.devices[deviceIndex].presets = [];
+    function addPreset(scope) {
+      const target = targetOf(scope);
+      if (!target.presets) {
+        target.presets = [];
       }
       // Find next free slot
-      const usedSlots = config.devices[deviceIndex].presets.map(p => p.slot);
+      const usedSlots = target.presets.map(p => p.slot);
       let nextSlot = 1;
       for (let i = 1; i <= 6; i++) {
         if (!usedSlots.includes(i)) { nextSlot = i; break; }
       }
-      config.devices[deviceIndex].presets.push({ slot: nextSlot, name: '', type: 'radio' });
+      target.presets.push({ slot: nextSlot, name: '', type: 'radio' });
       saveConfig();
       render();
     }
 
-    function updatePreset(deviceIndex, presetIndex, field, value) {
-      config.devices[deviceIndex].presets[presetIndex][field] = value;
+    function updatePreset(scope, presetIndex, field, value) {
+      targetOf(scope).presets[presetIndex][field] = value;
       saveConfig();
       render();
     }
 
-    function removePreset(deviceIndex, presetIndex) {
-      config.devices[deviceIndex].presets.splice(presetIndex, 1);
+    function removePreset(scope, presetIndex) {
+      targetOf(scope).presets.splice(presetIndex, 1);
       saveConfig();
       render();
     }
 
-    function addAnnouncement(deviceIndex) {
-      if (!config.devices[deviceIndex].announcements) {
-        config.devices[deviceIndex].announcements = [];
+    function addAnnouncement(scope) {
+      const target = targetOf(scope);
+      if (!target.announcements) {
+        target.announcements = [];
       }
-      config.devices[deviceIndex].announcements.push({ name: '', url: '' });
+      target.announcements.push({ name: '', url: '' });
       saveConfig();
       render();
     }
 
-    function updateAnnouncement(deviceIndex, announcementIndex, field, value) {
-      config.devices[deviceIndex].announcements[announcementIndex][field] = value;
+    function updateAnnouncement(scope, announcementIndex, field, value) {
+      targetOf(scope).announcements[announcementIndex][field] = value;
       saveConfig();
       render();
     }
 
-    function removeAnnouncement(deviceIndex, announcementIndex) {
-      config.devices[deviceIndex].announcements.splice(announcementIndex, 1);
+    function removeAnnouncement(scope, announcementIndex) {
+      targetOf(scope).announcements.splice(announcementIndex, 1);
       saveConfig();
       render();
     }
@@ -992,8 +1194,7 @@
       config.devices.push({
         host: device.host,
         name: device.name,
-        deviceID: device.deviceID || '',
-        deviceIcon: 34
+        deviceID: device.deviceID || ''
       });
 
       activeTab = config.devices.length - 1;
@@ -1009,8 +1210,7 @@
           config.devices.push({
             host: device.host,
             name: device.name,
-            deviceID: device.deviceID || '',
-            deviceIcon: 34
+            deviceID: device.deviceID || ''
           });
           added++;
         }
@@ -1036,7 +1236,7 @@
 
     // NAS Browser functions
     let nasBrowserState = {
-      deviceIndex: null,
+      scope: null,       // 'global' or device index
       presetIndex: null,
       host: null,
       servers: [],
@@ -1046,10 +1246,16 @@
       selectedItem: null
     };
 
-    async function openNasBrowser(deviceIndex, presetIndex) {
-      nasBrowserState.deviceIndex = deviceIndex;
+    async function openNasBrowser(scope, presetIndex) {
+      // Global presets have no device of their own: borrow the first configured speaker for browsing
+      const browseHost = scope === 'global' ? (config.devices[0] && config.devices[0].host) : config.devices[scope].host;
+      if (!browseHost) {
+        showStatus('Add at least one device first - the NAS browser needs a speaker to query media servers.', 'error');
+        return;
+      }
+      nasBrowserState.scope = scope;
       nasBrowserState.presetIndex = presetIndex;
-      nasBrowserState.host = config.devices[deviceIndex].host;
+      nasBrowserState.host = browseHost;
       nasBrowserState.currentPath = [];
       nasBrowserState.selectedItem = null;
       nasBrowserState.currentServer = null;
@@ -1191,12 +1397,13 @@
       if (nasBrowserState.selectedItem === null) return;
 
       const item = nasBrowserState.items[nasBrowserState.selectedItem];
-      const { deviceIndex, presetIndex } = nasBrowserState;
+      const { scope, presetIndex } = nasBrowserState;
 
       // Update preset with NAS info - use objectId as nasLocation
-      config.devices[deviceIndex].presets[presetIndex].nasLocation = item.objectId;
-      config.devices[deviceIndex].presets[presetIndex].nasServer = `${nasBrowserState.currentServer.id}/0`;
-      config.devices[deviceIndex].presets[presetIndex].name = item.name;
+      const preset = targetOf(scope).presets[presetIndex];
+      preset.nasLocation = item.objectId;
+      preset.nasServer = `${nasBrowserState.currentServer.id}/0`;
+      preset.name = item.name;
 
       saveConfig();
       render();
@@ -1208,7 +1415,7 @@
     function closeNasBrowser() {
       document.getElementById('nasBrowserModal').classList.remove('show');
       nasBrowserState = {
-        deviceIndex: null,
+        scope: null,
         presetIndex: null,
         host: null,
         servers: [],

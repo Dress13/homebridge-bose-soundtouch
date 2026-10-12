@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.20.0
+- **Global defaults** - New `defaults` object on the platform takes every device option (icon, names, enable flags, `maxVolume`, `multiRoomPreset`, `presets`, `announcements`, ...) and applies it to all speakers. A device overrides any single value by setting it itself; presets merge by slot, announcements by name. Modelled after the UniFi Protect plugin's global/device options.
+- **Custom UI** - New collapsible "Defaults for all devices" section with the full option form. Per device, every field offers "Global (…)" to inherit, text fields show the inherited value as placeholder, and inherited presets/announcements appear greyed out with an "Override" button that copies them to the device for editing.
+- **Schema** - Device-level options no longer carry schema defaults, so an unset field inherits the global value instead of being forced to a fixed one. Newly added devices no longer get a hard-coded icon.
+
 ## v1.19.0
 - **Off input** - New `offInputEnabled` option adds an "Off" entry to the input menu that powers the speaker down (name via `offName`). Useful for scenes/automations built on input selection. (Thanks @vsterian for the idea)
 - **TV Source in the input menu** - With `tvSourceEnabled`, TV Source now also appears as an input-menu entry. Menu order: Off, TV Source, presets, AUX, Bluetooth.

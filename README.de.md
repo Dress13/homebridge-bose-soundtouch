@@ -101,13 +101,26 @@ Dieses Plugin verwendet **External Accessories**:
       "name": "Bose SoundTouch",
       "autoDiscover": false,
       "discoveryTimeout": 10000,
+      "defaults": {
+        "deviceIcon": 26,
+        "maxVolume": 60,
+        "presetDisplay": "buttons",
+        "presets": [
+          {
+            "slot": 1,
+            "name": "SWR3",
+            "type": "radio",
+            "url": "http://liveradio.swr.de/sw282p3/swr3/play.mp3"
+          }
+        ]
+      },
       "devices": [
         {
           "name": "Küche Bose",
           "host": "192.168.10.178",
           "deviceID": "689E194B157B",
           "room": "Küche",
-          "deviceIcon": 26,
+          "maxVolume": 40,
           "presets": [
             {
               "slot": 1,
@@ -138,7 +151,18 @@ Dieses Plugin verwendet **External Accessories**:
 | `name` | string | **Pflicht** | Name der Plattform |
 | `autoDiscover` | boolean | `true` | Neue Geräte automatisch hinzufügen |
 | `discoveryTimeout` | number | `10000` | Timeout für mDNS Discovery in ms |
+| `defaults` | object | `{}` | Globale Einstellungen für alle Geräte (siehe unten) |
 | `devices` | array | `[]` | Konfigurierte Geräte |
+
+### Globale Einstellungen
+
+`defaults` nimmt jede Option aus der Geräte-Tabelle unten außer `name`, `host`, `deviceID` und `room`. Alles in `defaults` gilt für alle Boxen; ein Gerät überschreibt einen Wert einfach, indem es ihn selbst setzt (wie beim Homebridge UniFi Protect Plugin).
+
+- Einfache Optionen (`deviceIcon`, `maxVolume`, `multiRoomEnabled`, Namen, ...): Gerätewert gewinnt wenn gesetzt, sonst der globale, sonst der eingebaute Standard.
+- `presets`: werden per `slot` zusammengeführt. Ein Geräte-Preset auf Slot 2 ersetzt das globale Slot 2, alle anderen globalen Slots bleiben.
+- `announcements`: werden per `name` zusammengeführt. Eine Geräte-Ansage mit gleichem Namen ersetzt die globale.
+
+In der Custom UI stehen die globalen Werte im Bereich „Defaults for all devices“. Jedes Geräte-Feld bietet die Auswahl „Global (...)“, um auf den Standard zurückzufallen; geerbte Presets/Ansagen werden ausgegraut mit „Override“-Button angezeigt.
 
 ### Geräte-Konfiguration
 
@@ -148,7 +172,7 @@ Dieses Plugin verwendet **External Accessories**:
 | `host` | string | **Pflicht** | IP-Adresse (wird automatisch aktualisiert) |
 | `deviceID` | string | - | MAC-Adresse für zuverlässige Identifikation (wird automatisch gesetzt via Netzwerk-Scan in der UI) |
 | `room` | string | - | Raum-Zuordnung (optional) |
-| `deviceIcon` | number | `26` | HomeKit Icon (siehe unten) |
+| `deviceIcon` | number | `34` | HomeKit Icon (siehe unten) |
 | `presets` | array | `[]` | Preset-Konfiguration |
 
 ### Device Icons

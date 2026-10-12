@@ -101,13 +101,26 @@ This plugin uses **External Accessories**:
       "name": "Bose SoundTouch",
       "autoDiscover": false,
       "discoveryTimeout": 10000,
+      "defaults": {
+        "deviceIcon": 26,
+        "maxVolume": 60,
+        "presetDisplay": "buttons",
+        "presets": [
+          {
+            "slot": 1,
+            "name": "SWR3",
+            "type": "radio",
+            "url": "http://liveradio.swr.de/sw282p3/swr3/play.mp3"
+          }
+        ]
+      },
       "devices": [
         {
           "name": "Kitchen Bose",
           "host": "192.168.10.178",
           "deviceID": "689E194B157B",
           "room": "Kitchen",
-          "deviceIcon": 26,
+          "maxVolume": 40,
           "presets": [
             {
               "slot": 1,
@@ -145,7 +158,18 @@ This plugin uses **External Accessories**:
 | `name` | string | **Required** | Platform name |
 | `autoDiscover` | boolean | `true` | Automatically add new devices |
 | `discoveryTimeout` | number | `10000` | mDNS discovery timeout in ms |
+| `defaults` | object | `{}` | Global defaults for all devices (see below) |
 | `devices` | array | `[]` | Configured devices |
+
+### Global Defaults
+
+`defaults` takes every option from the device table below except `name`, `host`, `deviceID` and `room`. Everything in `defaults` applies to all speakers; a device overrides a value simply by setting it itself (like the Homebridge UniFi Protect plugin's global/device options).
+
+- Scalar options (`deviceIcon`, `maxVolume`, `multiRoomEnabled`, names, ...): the device value wins when set, otherwise the global one, otherwise the built-in default.
+- `presets`: merged by `slot`. A device preset on slot 2 replaces the global slot 2, all other global slots stay.
+- `announcements`: merged by `name`. A device announcement with the same name replaces the global one.
+
+In the Custom UI the "Defaults for all devices" section holds the global values. Every device field offers a "Global (...)" choice to fall back to the default, and inherited presets/announcements are shown greyed out with an "Override" button.
 
 ### Device Configuration
 
@@ -155,7 +179,7 @@ This plugin uses **External Accessories**:
 | `host` | string | **Required** | IP address (auto-updated on IP change) |
 | `deviceID` | string | - | MAC address for reliable identification (auto-set via network scan in UI) |
 | `room` | string | - | Room assignment (optional) |
-| `deviceIcon` | number | `26` | HomeKit icon (see below) |
+| `deviceIcon` | number | `34` | HomeKit icon (see below) |
 | `presets` | array | `[]` | Preset configuration |
 | `multiRoomEnabled` | boolean | `true` | Show Multi-Room switch |
 | `multiRoomPreset` | number | - | Hardware preset button (1-6) that toggles Multi-Room instead of playing content |
