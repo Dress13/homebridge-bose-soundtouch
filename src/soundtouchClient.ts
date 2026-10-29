@@ -926,7 +926,7 @@ export class SoundTouchClient {
   }
 
   async setName(name: string): Promise<void> {
-    const xml = `<name>${name}</name>`;
+    const xml = `<name>${this.xmlEscape(name)}</name>`;
     await this.post('/name', xml);
   }
 

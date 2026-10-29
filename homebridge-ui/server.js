@@ -14,6 +14,10 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
     this.onRequest('/getMediaServers', this.getMediaServers.bind(this));
     this.onRequest('/browseNas', this.browseNas.bind(this));
 
+    // Speaker name on the device itself (also drives its DHCP hostname)
+    this.onRequest('/getSpeakerName', this.getSpeakerName.bind(this));
+    this.onRequest('/renameSpeaker', this.renameSpeaker.bind(this));
+
     // Ready
     this.ready();
   }
@@ -84,6 +88,70 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
         reject(new Error('Timeout'));
       });
     });
+  }
+
+  async getSpeakerName(payload) {
+    const { host } = payload;
+    if (!host) {
+      return { error: 'No host provided' };
+    }
+    try {
+      const info = await this.getDeviceInfo(host);
+      return { name: info.name };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  // Set the name stored on the speaker. The speaker announces it as DHCP
+  // hostname "SoundTouch-<name>" (invalid characters become "-").
+  async renameSpeaker(payload) {
+    const { host } = payload;
+    const name = (payload.name || '').trim();
+    if (!host || !name) {
+      return { error: 'Host and name required' };
+    }
+
+    const escaped = name
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const body = `<name>${escaped}</name>`;
+
+    try {
+      await new Promise((resolve, reject) => {
+        const req = http.request({
+          hostname: host,
+          port: 8090,
+          path: '/name',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/xml; charset="utf-8"',
+            'Content-Length': Buffer.byteLength(body),
+          },
+          timeout: 5000,
+        }, (res) => {
+          res.resume();
+          res.on('end', () => res.statusCode === 200
+            ? resolve()
+            : reject(new Error(`HTTP ${res.statusCode}`)));
+        });
+        req.on('error', reject);
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Timeout'));
+        });
+        req.write(body);
+        req.end();
+      });
+
+      // Read back what the speaker actually stored
+      const info = await this.getDeviceInfo(host);
+      return { name: info.name };
+    } catch (error) {
+      return { error: error.message };
+    }
   }
 
   // Get available DLNA media servers from a SoundTouch device

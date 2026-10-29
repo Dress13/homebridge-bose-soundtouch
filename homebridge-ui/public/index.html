@@ -788,6 +788,8 @@
             </div>
           </div>
 
+          ${renderSpeakerName(i)}
+
           <small style="display: block; margin-bottom: 10px; color: #6c757d;">
             "Global" uses the value from "Defaults for all devices". Pick anything else to override it for this speaker only.
           </small>
@@ -795,6 +797,82 @@
           ${renderOptions(i)}
         </div>
       `).join('');
+    }
+
+    // Name stored on the speaker itself. The speaker announces it as DHCP hostname
+    // "SoundTouch-<name>", so this is what routers (e.g. UniFi) show.
+    const speakerNames = {}; // host -> { name, draft, loading, error }
+
+    function toHostSafe(name) {
+      return name
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+        .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+        .replace(/ß/g, 'ss')
+        .trim();
+    }
+
+    function hostnamePreview(name) {
+      return 'SoundTouch-' + toHostSafe(name).replace(/[^A-Za-z0-9-]/g, '-');
+    }
+
+    async function loadSpeakerName(host) {
+      speakerNames[host] = { loading: true };
+      const response = await homebridge.request('/getSpeakerName', { host });
+      speakerNames[host] = response.error
+        ? { error: response.error }
+        : { name: response.name, draft: response.name };
+      render();
+    }
+
+    function renderSpeakerName(i) {
+      const host = config.devices[i].host;
+      if (!host) return '';
+      if (i === activeTab && !speakerNames[host]) {
+        loadSpeakerName(host);
+      }
+      const st = speakerNames[host];
+      let body;
+      if (st.loading) {
+        body = '<small>Reading name from speaker…</small>';
+      } else if (st.error) {
+        body = `<small style="color: #dc3545;">Speaker not reachable (${esc(st.error)})</small>
+          <button class="btn" onclick="loadSpeakerName('${esc(host)}')">Retry</button>`;
+      } else {
+        const changed = toHostSafe(st.draft) !== st.name;
+        body = `
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" value="${esc(st.draft)}" style="flex: 1;"
+              oninput="onSpeakerNameInput('${esc(host)}', this)">
+            <button class="btn btn-primary" ${changed && toHostSafe(st.draft) ? '' : 'disabled'}
+              onclick="renameSpeaker('${esc(host)}')">Apply to speaker</button>
+          </div>
+          <small>Hostname: <code id="hostPreview-${i}">${esc(hostnamePreview(st.draft))}</code>
+            · Umlauts are replaced (ü → ue). The speaker sends the new hostname after a restart (unplug briefly).</small>`;
+      }
+      return `<div class="form-group"><label>Network name (stored on the speaker)</label>${body}</div>`;
+    }
+
+    function onSpeakerNameInput(host, input) {
+      const st = speakerNames[host];
+      st.draft = input.value;
+      // Update preview and button without re-rendering (keeps focus)
+      const group = input.closest('.form-group');
+      group.querySelector('code').textContent = hostnamePreview(st.draft);
+      const safe = toHostSafe(st.draft);
+      group.querySelector('button').disabled = !safe || safe === st.name;
+    }
+
+    async function renameSpeaker(host) {
+      const st = speakerNames[host];
+      const name = toHostSafe(st.draft);
+      const response = await homebridge.request('/renameSpeaker', { host, name });
+      if (response.error) {
+        showStatus(`Rename failed: ${response.error}`, 'error');
+        return;
+      }
+      speakerNames[host] = { name: response.name, draft: response.name };
+      showStatus(`Speaker renamed to "${response.name}". Restart the speaker to update its hostname.`, 'success');
+      render();
     }
 
     // Global presets not overridden by this device, shown read-only with an "Override" action
