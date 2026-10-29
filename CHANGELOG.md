@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.21.0
+- **Speaker network name** - New "Network name" field per device in the custom UI. It reads the name stored on the speaker and writes a new one via the local API. The speaker announces this name as its DHCP hostname (`SoundTouch-<name>`), so routers like UniFi show it properly. Umlauts are replaced automatically (Küche → Kueche) and a hostname preview is shown. Restart the speaker afterwards so it sends the new hostname.
+- **Fix: XML escaping when renaming** - Names containing `&`, `<` or `>` no longer produce an invalid request.
+
 ## v1.20.1
 - **Custom UI** - The global defaults section now has a proper "Edit Defaults" / "Hide Defaults" button instead of a tiny arrow. Auto-Discovery checkbox sits next to its label.
 
