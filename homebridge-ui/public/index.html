@@ -831,6 +831,7 @@
         loadSpeakerName(host);
       }
       const st = speakerNames[host];
+      if (!st) return ''; // loaded when the tab is opened
       let body;
       if (st.loading) {
         body = '<small>Reading name from speaker…</small>';
