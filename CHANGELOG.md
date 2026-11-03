@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.22.0
+- **Radio station search** - Radio presets in the custom UI get a "Search station" button next to the Stream URL. It searches [radio-browser.info](https://www.radio-browser.info) by name (optional country code, "MP3 only" filter) and fills in the stream URL and, if empty, the preset name. The public API is only contacted when you search.
+
 ## v1.21.1
 - **Fix: device settings not showing** - In 1.21.0 the device tabs in the custom UI stayed empty because rendering crashed for tabs whose speaker name was not loaded yet.
 
