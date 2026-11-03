@@ -12,7 +12,7 @@ Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple 
 - **MAC-basierte Identifikation** - Geräte werden per MAC-Adresse erkannt, IP-Wechsel per DHCP werden automatisch aufgelöst und in der Config gespeichert
 - **External Accessories** - Jedes Gerät erscheint als eigenständiges Accessory in HomeKit
 - **Television Service** - Volle Steuerung über die Apple TV Remote im Kontrollzentrum
-- **Internet Radio** - Eigene Radiosender als HTTP-Streams (läuft über DLNA, keine Cloud nötig)
+- **Internet Radio** - Eigene Radiosender als HTTP-Streams (läuft über DLNA, keine Cloud nötig); die Custom UI enthält eine Sendersuche über [radio-browser.info](https://www.radio-browser.info)
 - **NAS/DLNA** - Musik von NAS-Servern als Presets konfigurierbar (mit Browser-Wizard)
 - **Hardware-Buttons** - Die physischen Preset-Tasten 1-6 auf der Box funktionieren wieder! Das Plugin fängt den Button-Druck per WebSocket ab und spielt den konfigurierten Content per DLNA
 - **Spotify & Amazon Music** - Streaming-Dienste weiterhin unterstützt
@@ -200,6 +200,8 @@ In der Custom UI stehen die globalen Werte im Bereich „Defaults for all device
 | `nasServer` | string | Server-ID + "/0" (nur für `nas`) |
 
 **Hinweis:** `tunein` wird nicht mehr unterstützt (Bose Cloud abgeschaltet). Nutze stattdessen `radio` mit der direkten HTTP-Stream-URL des Senders.
+
+Für `radio`-Presets bietet die Custom UI neben dem Feld „Stream URL“ den Button „Search station“, der URL (und Namen, falls leer) des ausgewählten Senders einträgt. Die Suche kontaktiert die öffentliche radio-browser.info-API nur, wenn du sie in der UI benutzt; das Plugin selbst tut das nie.
 
 ## Wie es technisch funktioniert
 

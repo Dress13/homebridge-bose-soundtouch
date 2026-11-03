@@ -2,6 +2,14 @@ const { HomebridgePluginUiServer } = require('@homebridge/plugin-ui-utils');
 const { Bonjour } = require('bonjour-service');
 const http = require('http');
 const { parseStringPromise } = require('xml2js');
+const { version: pluginVersion } = require('../package.json');
+
+// Public radio-browser.info API mirrors, tried in random order
+const RADIO_BROWSER_HOSTS = [
+  'de1.api.radio-browser.info',
+  'de2.api.radio-browser.info',
+];
+const RADIO_BROWSER_TIMEOUT = 5000;
 
 class SoundTouchUiServer extends HomebridgePluginUiServer {
   constructor() {
@@ -17,6 +25,9 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
     // Speaker name on the device itself (also drives its DHCP hostname)
     this.onRequest('/getSpeakerName', this.getSpeakerName.bind(this));
     this.onRequest('/renameSpeaker', this.renameSpeaker.bind(this));
+
+    // Internet radio station search via radio-browser.info
+    this.onRequest('/searchRadio', this.searchRadio.bind(this));
 
     // Ready
     this.ready();
@@ -309,6 +320,67 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
       req.write(soapBody);
       req.end();
     });
+  }
+
+  // Search internet radio stations on radio-browser.info
+  async searchRadio(payload) {
+    const query = String((payload && payload.query) || '').trim();
+    if (query.length < 2) {
+      return { error: 'Please enter at least 2 characters', stations: [] };
+    }
+
+    const countrycode = String((payload && payload.countrycode) || '').trim().toUpperCase();
+    if (countrycode && !/^[A-Z]{2}$/.test(countrycode)) {
+      return { error: 'Country code must be 2 letters (e.g. DE)', stations: [] };
+    }
+
+    let limit = parseInt(payload && payload.limit, 10);
+    if (!Number.isFinite(limit) || limit <= 0) limit = 30;
+    limit = Math.min(limit, 50);
+
+    const params = new URLSearchParams({
+      name: query,
+      limit: String(limit),
+      hidebroken: 'true',
+      order: 'clickcount',
+      reverse: 'true',
+    });
+    if (countrycode) params.set('countrycode', countrycode);
+
+    // Shuffle mirrors so load is spread across them
+    const hosts = [...RADIO_BROWSER_HOSTS].sort(() => Math.random() - 0.5);
+    let lastError = 'No radio-browser.info server reachable';
+
+    for (const host of hosts) {
+      try {
+        const res = await fetch(`https://${host}/json/stations/search?${params}`, {
+          headers: { 'User-Agent': `homebridge-bose-soundtouch/${pluginVersion}` },
+          signal: AbortSignal.timeout(RADIO_BROWSER_TIMEOUT),
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+          throw new Error('Unexpected response');
+        }
+        return {
+          stations: data.map(st => ({
+            name: (st.name || '').trim(),
+            url: st.url_resolved || st.url || '',
+            codec: st.codec || '',
+            bitrate: st.bitrate || 0,
+            country: st.country || '',
+            favicon: st.favicon || '',
+            homepage: st.homepage || '',
+          })).filter(st => st.url),
+        };
+      } catch (error) {
+        lastError = `${host}: ${error.name === 'TimeoutError' ? 'Timeout' : error.message}`;
+      }
+    }
+
+    return { error: lastError, stations: [] };
   }
 }
 

@@ -354,6 +354,11 @@
       padding: 30px;
       color: #6c757d;
     }
+
+    /* Radio station search (reuses modal + nas-item styles) */
+    .radio-item { cursor: default; gap: 10px; }
+    .radio-item .btn { padding: 4px 12px; font-size: 12px; }
+    .radio-item-meta { display: block; font-size: 12px; color: #6c757d; }
   </style>
 </head>
 <body>
@@ -426,6 +431,39 @@
       <div class="modal-footer">
         <button class="btn" onclick="closeNasBrowser()">Cancel</button>
         <button id="nasSelectBtn" class="btn btn-success" onclick="selectNasItem()" disabled>Select</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Radio Station Search Modal -->
+  <div id="radioSearchModal" class="modal-overlay" onclick="if(event.target===this)closeRadioSearch()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Search Radio Station</h3>
+        <button class="modal-close" onclick="closeRadioSearch()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="flex: 3;">
+            <label>Station name</label>
+            <input type="text" id="radioSearchQuery" placeholder="e.g. SWR3" onkeydown="if(event.key==='Enter')searchRadio()">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Country</label>
+            <input type="text" id="radioSearchCountry" maxlength="2" placeholder="DE" onkeydown="if(event.key==='Enter')searchRadio()">
+          </div>
+        </div>
+        <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="margin: 0;">
+            <input type="checkbox" id="radioSearchMp3" checked onchange="renderRadioResults()"> MP3 only
+          </label>
+          <button id="radioSearchBtn" class="btn btn-primary" onclick="searchRadio()">Search</button>
+        </div>
+        <div id="radioSearchContent"></div>
+        <small style="color: #6c757d;">Station data from radio-browser.info</small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeRadioSearch()">Cancel</button>
       </div>
     </div>
   </div>
@@ -996,7 +1034,10 @@
           ${preset.type === 'radio' ? `
             <div class="form-group">
               <label>Stream URL</label>
-              <input type="text" value="${preset.url || ''}" onchange="updatePreset(${s}, ${pi}, 'url', this.value)" placeholder="http://...">
+              <div style="display: flex; gap: 10px;">
+                <input type="text" value="${esc(preset.url || '')}" onchange="updatePreset(${s}, ${pi}, 'url', this.value)" placeholder="http://..." style="flex: 1;">
+                <button class="btn btn-primary" onclick="openRadioSearch(${s}, ${pi})">Search station</button>
+              </div>
             </div>
           ` : ''}
           ${preset.type === 'spotify' ? `
@@ -1507,6 +1548,139 @@
         currentPath: [],
         items: [],
         selectedItem: null
+      };
+    }
+
+    // Radio station search (radio-browser.info)
+    let radioSearchState = {
+      scope: null,       // 'global' or device index
+      presetIndex: null,
+      stations: [],
+      searched: false,
+      loading: false
+    };
+
+    function openRadioSearch(scope, presetIndex) {
+      radioSearchState.scope = scope;
+      radioSearchState.presetIndex = presetIndex;
+      radioSearchState.stations = [];
+      radioSearchState.searched = false;
+      radioSearchState.loading = false;
+
+      const preset = targetOf(scope).presets[presetIndex];
+      const queryInput = document.getElementById('radioSearchQuery');
+      queryInput.value = preset.name || '';
+      document.getElementById('radioSearchContent').innerHTML =
+        '<p style="color: #6c757d;">Enter a station name and press Search.</p>';
+
+      const modal = document.getElementById('radioSearchModal');
+      modal.classList.add('show');
+      modal.scrollTop = 0;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      queryInput.focus();
+    }
+
+    async function searchRadio() {
+      if (radioSearchState.loading) return;
+      const content = document.getElementById('radioSearchContent');
+      const query = document.getElementById('radioSearchQuery').value.trim();
+      const countrycode = document.getElementById('radioSearchCountry').value.trim().toUpperCase();
+
+      if (query.length < 2) {
+        content.innerHTML = '<p style="color: #dc3545;">Please enter at least 2 characters.</p>';
+        return;
+      }
+      if (countrycode && !/^[A-Z]{2}$/.test(countrycode)) {
+        content.innerHTML = '<p style="color: #dc3545;">Country code must be 2 letters (e.g. DE).</p>';
+        return;
+      }
+
+      radioSearchState.loading = true;
+      radioSearchState.searched = false;
+      radioSearchState.stations = [];
+      document.getElementById('radioSearchBtn').disabled = true;
+      content.innerHTML = '<div class="nas-loading">Searching...</div>';
+
+      try {
+        const response = await homebridge.request('/searchRadio', { query, countrycode, limit: 50 });
+        if (response.error) {
+          content.innerHTML = `<p style="color: #dc3545;">Error: ${esc(response.error)}</p>`;
+          return;
+        }
+        radioSearchState.stations = response.stations || [];
+        radioSearchState.searched = true;
+        radioSearchState.loading = false;
+        renderRadioResults();
+      } catch (error) {
+        content.innerHTML = `<p style="color: #dc3545;">Error: ${esc(error.message)}</p>`;
+      } finally {
+        radioSearchState.loading = false;
+        document.getElementById('radioSearchBtn').disabled = false;
+      }
+    }
+
+    function visibleRadioStations() {
+      const mp3Only = document.getElementById('radioSearchMp3').checked;
+      return radioSearchState.stations
+        .map((st, i) => ({ st, i }))
+        .filter(({ st }) => !mp3Only || (st.codec || '').toUpperCase() === 'MP3');
+    }
+
+    function renderRadioResults() {
+      if (radioSearchState.loading) return;
+      const content = document.getElementById('radioSearchContent');
+      // Before the first successful search keep the hint / error message
+      if (!radioSearchState.searched) return;
+      if (radioSearchState.stations.length === 0) {
+        content.innerHTML = '<p style="color: #6c757d;">No stations found.</p>';
+        return;
+      }
+
+      const rows = visibleRadioStations();
+      if (rows.length === 0) {
+        content.innerHTML = '<p style="color: #6c757d;">No MP3 stations found. Uncheck "MP3 only" to see all results.</p>';
+        return;
+      }
+
+      content.innerHTML = rows.map(({ st, i }) => {
+        const meta = [st.codec, st.bitrate ? `${st.bitrate} kbps` : '', st.country].filter(Boolean).join(' · ');
+        return `
+          <div class="nas-item radio-item">
+            <span class="nas-item-name">
+              ${esc(st.name || 'Unnamed')}
+              <span class="radio-item-meta">${esc(meta)}</span>
+            </span>
+            <button class="btn btn-success" onclick="selectRadioStation(${i})">Select</button>
+          </div>`;
+      }).join('');
+    }
+
+    function selectRadioStation(index) {
+      const station = radioSearchState.stations[index];
+      if (!station) return;
+      const { scope, presetIndex } = radioSearchState;
+
+      const preset = targetOf(scope).presets[presetIndex];
+      preset.url = station.url;
+      if (!isSet(preset.name)) {
+        preset.name = station.name;
+      }
+
+      saveConfig();
+      render();
+      closeRadioSearch();
+
+      showStatus(`Radio station "${station.name}" selected!`, 'success');
+    }
+
+    function closeRadioSearch() {
+      document.getElementById('radioSearchModal').classList.remove('show');
+      radioSearchState = {
+        scope: null,
+        presetIndex: null,
+        stations: [],
+        searched: false,
+        loading: false
       };
     }
   </script>
