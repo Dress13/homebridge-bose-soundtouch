@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.24.0
+- **Spotify presets work again** - Since the Bose cloud shutdown the speaker rejects Spotify presets with `MUSIC_SERVICE_ACCOUNT_LOGIN_FAILED`. The plugin now starts them through the Spotify Web API on the speaker as a Spotify Connect device (wakes it from standby). One-time setup in the new **Spotify** section of the custom UI: paste the Client ID of your own free Spotify developer app and sign in (Spotify Premium required). See README, "Spotify Presets".
+- **Shuffle for Spotify** - "Playback Order" is now applied via Spotify itself: "Shuffle" turns shuffle on and skips to a random track, "In order" turns it off. This replaces the 1.23.0 approach, which depended on the broken speaker login.
+- **Spotify links** - The Spotify URI field also accepts share links (`https://open.spotify.com/playlist/...`). The Account field is no longer needed for Spotify.
+- **Works no matter who streamed last** - Before playing, the plugin signs the speaker in to the connected Spotify account through the speaker's local Spotify Connect API. A family member streaming from their phone no longer blocks the preset.
+- **Clear log messages** - If Spotify is not connected or a speaker refuses the sign-in, the log says so instead of failing silently.
+
 ## v1.23.0
 - **Shuffle for Spotify presets** - The "Playback Order" option (and the `shuffle` config field) now also works for Spotify presets. After the playlist starts, the plugin waits until the speaker is actually playing, enables shuffle and skips once so playback starts on a random track. Runs in the background, so the HomeKit switch responds immediately. "In order" leaves Spotify's own shuffle setting untouched.
 
