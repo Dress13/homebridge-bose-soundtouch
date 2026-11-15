@@ -1249,24 +1249,18 @@ export class SoundTouchAccessory {
 
     // Preferred: Spotify Web API (Spotify Connect). Works without the Bose cloud.
     if (spotify.isConnected()) {
+      const uri = config.spotifyUri;
       const target = { host: this.deviceConfig.host, name: this.deviceInfo?.name || this.accessory.displayName };
       let deviceId: string;
       try {
-        deviceId = await spotify.play(target, config.spotifyUri);
+        deviceId = await spotify.play(target, uri);
       } catch (error) {
         this.platform.log.error(`${config.name}: ${error instanceof Error ? error.message : error}`);
         return;
       }
-      // Shuffle needs running playback; do it in the background so HomeKit responds immediately
-      this.client.waitUntilPlaying('SPOTIFY')
-        .then(async playing => {
-          if (!playing) {
-            this.platform.log.warn(`${config.name}: Spotify did not start playing on ${this.accessory.displayName}`);
-            return;
-          }
-          await spotify.setShuffle(deviceId, config.shuffle === true);
-        })
-        .catch(err => this.platform.log.warn(`${config.name}: Failed to set shuffle:`, err.message || err));
+      // The rest runs in the background so HomeKit responds immediately
+      this.finishSpotifyStart(config, uri, target, deviceId)
+        .catch(err => this.platform.log.warn(`${config.name}: ${err instanceof Error ? err.message : err}`));
       return;
     }
 
@@ -1293,6 +1287,35 @@ export class SoundTouchAccessory {
         }
       })
       .catch(err => this.platform.log.warn(`${config.name}: Failed to enable shuffle:`, err.message || err));
+  }
+
+  /** Make sure Spotify really plays (retry a lost start) and bring shuffle to the configured state. */
+  private async finishSpotifyStart(
+    config: PresetConfig, uri: string, target: { host: string; name: string }, firstDeviceId: string,
+  ): Promise<void> {
+    let deviceId = firstDeviceId;
+    for (let attempt = 1; !(await this.client.waitUntilPlaying('SPOTIFY', 8000)); attempt++) {
+      if (attempt >= 3) {
+        this.platform.log.warn(`${config.name}: Spotify did not start playing on ${this.accessory.displayName}`);
+        return;
+      }
+      this.platform.log.debug(`${config.name}: Spotify not playing yet, starting again (attempt ${attempt + 1})`);
+      deviceId = await this.platform.spotify.play(target, uri);
+    }
+
+    // Spotify remembers shuffle per account. If it already matches, playback started the right
+    // way (random track with shuffle on) and nothing audible has to change.
+    const wanted = config.shuffle === true;
+    const nowPlaying = await this.client.getNowPlaying();
+    if ((nowPlaying.shuffleSetting === 'SHUFFLE_ON') === wanted) {
+      return;
+    }
+    await this.platform.spotify.setShuffle(deviceId, wanted);
+    if (wanted) {
+      await this.platform.spotify.skipToNext(deviceId);        // leave track 1 for a random one
+    } else {
+      await this.platform.spotify.restart(deviceId, uri);       // back to the first track
+    }
   }
 
   private initRetryTimer?: ReturnType<typeof setTimeout>;

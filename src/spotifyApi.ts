@@ -68,12 +68,10 @@ export class SpotifyApi {
    */
   async play(target: SpotifyTarget, spotifyUri: string): Promise<string> {
     const deviceId = await this.findDeviceId(target);
-    const uri = normalizeSpotifyUri(spotifyUri);
-    const body = /^spotify:(track|episode):/.test(uri) ? { uris: [uri] } : { context_uri: uri };
     // Right after the sign-in Spotify may not know the speaker yet (404): retry briefly
     for (let attempt = 0; ; attempt++) {
       try {
-        await this.request('PUT', `/me/player/play?device_id=${deviceId}`, body);
+        await this.restart(deviceId, spotifyUri);
         return deviceId;
       } catch (error) {
         if (!(error instanceof SpotifyApiError) || error.status !== 404 || attempt >= 6) {
@@ -84,15 +82,21 @@ export class SpotifyApi {
     }
   }
 
-  /**
-   * Set shuffle on the device returned by play(); when enabling, skip once so a
-   * random track plays first. Takes the device id so the speaker is not signed in again.
-   */
+  /** (Re)start the content on a device returned by play(), without signing the speaker in again. */
+  async restart(deviceId: string, spotifyUri: string): Promise<void> {
+    const uri = normalizeSpotifyUri(spotifyUri);
+    const body = /^spotify:(track|episode):/.test(uri) ? { uris: [uri] } : { context_uri: uri };
+    await this.request('PUT', `/me/player/play?device_id=${deviceId}`, body);
+  }
+
+  /** Set shuffle on a device returned by play(). */
   async setShuffle(deviceId: string, enabled: boolean): Promise<void> {
     await this.request('PUT', `/me/player/shuffle?state=${enabled}&device_id=${deviceId}`);
-    if (enabled) {
-      await this.request('POST', `/me/player/next?device_id=${deviceId}`);
-    }
+  }
+
+  /** Skip to the next track on a device returned by play(). */
+  async skipToNext(deviceId: string): Promise<void> {
+    await this.request('POST', `/me/player/next?device_id=${deviceId}`);
   }
 
   private async findDeviceId(target: SpotifyTarget): Promise<string> {
