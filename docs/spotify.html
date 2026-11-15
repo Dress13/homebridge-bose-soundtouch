@@ -45,12 +45,17 @@
   var $ = function (id) { return document.getElementById(id); };
   var show = function (id) { $(id).classList.remove('hidden'); };
 
-  if (error || !code) {
+  if (!error && !code) {
+    // Opened directly, not as part of a login
+    $('title').textContent = 'Nothing to do here';
+    $('msg').textContent = 'This address is not meant to be opened. Enter it as "Redirect URI" in your Spotify developer app '
+      + '(developer.spotify.com/dashboard, your app, Settings), then click "Connect Spotify" in the plugin settings in Homebridge.';
+    return;
+  }
+  if (error) {
     $('title').textContent = 'Spotify login failed';
     $('msg').className = 'err';
-    $('msg').textContent = error
-      ? 'Spotify reported: ' + error + '. Go back to Homebridge and click "Connect Spotify" again.'
-      : 'This page is only used during the Spotify login of the homebridge-bose-soundtouch plugin.';
+    $('msg').textContent = 'Spotify reported: ' + error + '. Go back to Homebridge and click "Connect Spotify" again.';
     return;
   }
 
