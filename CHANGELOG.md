@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.25.2
+- **Shuffle without the 2-second false start** - With shuffle on, Spotify already starts on a random track, so the plugin no longer starts a song and immediately skips to another one. It only intervenes when Spotify's shuffle setting differs from the preset (e.g. after someone switched it off in the Spotify app).
+- **Fix: first press sometimes did nothing** - Occasionally the speaker hangs in "buffering" after the start. The plugin now notices this after 8 seconds and starts again by itself (up to two more times).
+- **"In order"** - If shuffle was on, the plugin switches it off and restarts the playlist from the first track.
+
 ## v1.25.1
 - **Fix: Spotify preset hangs without sound** - After a while the speaker's Spotify sign-in went stale; the preset then switched the speaker to Spotify but it stayed in "buffering" forever ("Spotify did not start playing"). The plugin now signs the speaker in with a fresh token before every start and briefly retries while Spotify registers the speaker.
 - **Fix: shuffle no longer interrupts playback** - Setting shuffle reuses the device found for the start instead of signing the speaker in a second time.
