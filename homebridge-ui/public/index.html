@@ -41,6 +41,7 @@
     .btn-success { background: #28a745; color: white; }
     .btn-success:hover { background: #1e7e34; }
     .btn-danger { background: #dc3545; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
     .btn-danger:hover { background: #c82333; }
     .btn:disabled { background: #6c757d; cursor: not-allowed; }
 
@@ -389,12 +390,18 @@
   <!-- Spotify account (needed for Spotify presets since the Bose cloud shutdown) -->
   <div class="section">
     <h4>Spotify</h4>
-    <small style="display: block; color: #6c757d; margin-bottom: 10px;">
-      Spotify presets are started through your Spotify account (Spotify Connect). Requires Spotify Premium and a free
-      developer app: create one at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>
-      with Redirect URI <code id="spotifyRedirect">http://127.0.0.1:8888/callback</code> and "Web API" checked, then copy its Client ID here.
-    </small>
     <div id="spotifyState" style="margin-bottom: 10px; font-weight: 600;"></div>
+    <small style="display: block; color: #6c757d; margin-bottom: 10px;">
+      Spotify presets are started through your Spotify account (requires Spotify Premium). One-time setup:
+    </small>
+    <ol style="margin: 0 0 12px 18px; padding: 0; color: #495057; font-size: 14px; line-height: 1.7;">
+      <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>, log in and click <b>Create app</b>.</li>
+      <li>Name and description: anything. <b>Redirect URI</b> (copy exactly, then click Add):<br>
+        <code id="spotifyRedirect" style="user-select: all;"></code>
+        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="spotifyCopyRedirect(this)">Copy</button></li>
+      <li>Check <b>Web API</b>, accept the terms, click <b>Save</b>.</li>
+      <li>Copy the app's <b>Client ID</b> into the field below and click <b>Connect Spotify</b>.</li>
+    </ol>
     <div class="form-group">
       <label>Client ID</label>
       <div style="display: flex; gap: 10px;">
@@ -405,21 +412,21 @@
     </div>
     <div id="spotifyFinish" style="display: none;">
       <div class="form-group">
-        <label>Finish login</label>
+        <label id="spotifyWaitLabel">Waiting for the Spotify login...</label>
         <small style="display: block; margin-bottom: 6px;">
-          1. <a id="spotifyLoginLink" href="#" target="_blank" rel="noopener">Open the Spotify login</a> and agree.
-          2. The browser then shows an error page ("can't connect to 127.0.0.1") - that is expected.
-          Copy the full address from the address bar and paste it here.
+          A new tab opened with the Spotify login (<a id="spotifyLoginLink" href="#" target="_blank" rel="noopener">open it again</a>).
+          After you agree, this page switches to "Connected" by itself.
+          Only if it does not: copy the address shown after the login and paste it here.
         </small>
         <div style="display: flex; gap: 10px;">
-          <input type="text" id="spotifyRedirectUrl" placeholder="http://127.0.0.1:8888/callback?code=..." style="flex: 1;">
+          <input type="text" id="spotifyRedirectUrl" placeholder="https://dress13.github.io/homebridge-bose-soundtouch/spotify.html?code=..." style="flex: 1;">
           <button class="btn btn-primary" onclick="spotifyFinish()">Finish</button>
         </div>
       </div>
     </div>
     <div id="spotifyMsg" style="color: #dc3545;"></div>
     <small style="display: block; color: #6c757d; margin-top: 6px;">
-      The plugin signs each speaker in to this account by itself before playing, no matter who streamed to it last.
+      No password is stored. The plugin signs each speaker in to this account by itself before playing, no matter who streamed to it last.
     </small>
   </div>
 
@@ -1428,7 +1435,7 @@
       const msg = document.getElementById('spotifyMsg');
       msg.textContent = '';
       const clientId = document.getElementById('spotifyClientId').value.trim();
-      const response = await homebridge.request('/spotifyAuthUrl', { clientId });
+      const response = await homebridge.request('/spotifyAuthUrl', { clientId, uiHost: window.location.hostname });
       if (response.error) {
         msg.textContent = response.error;
         return;
@@ -1453,6 +1460,23 @@
       spotifyRender(response);
       showStatus('Spotify connected' + (response.user ? ' as ' + response.user : ''), 'success');
     }
+
+    function spotifyCopyRedirect(button) {
+      const text = document.getElementById('spotifyRedirect').textContent;
+      const done = () => { button.textContent = 'Copied'; setTimeout(() => { button.textContent = 'Copy'; }, 2000); };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(done, () => window.prompt('Copy the Redirect URI:', text));
+      } else {
+        window.prompt('Copy the Redirect URI:', text);
+      }
+    }
+
+    // The login tab reports back through the UI server once the user agreed
+    homebridge.addEventListener('spotify-connected', (event) => {
+      document.getElementById('spotifyMsg').textContent = '';
+      spotifyRender(event.data);
+      showStatus('Spotify connected' + (event.data.user ? ' as ' + event.data.user : ''), 'success');
+    });
 
     async function spotifyDisconnect() {
       spotifyRender(await homebridge.request('/spotifyDisconnect'));

@@ -17,7 +17,10 @@ const RADIO_BROWSER_TIMEOUT = 5000;
 // Spotify login (Authorization Code with PKCE, no client secret needed).
 // Keep file name in sync with SPOTIFY_TOKEN_FILE in src/spotifyApi.ts.
 const SPOTIFY_TOKEN_FILE = 'bose-soundtouch-spotify.json';
-const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:8888/callback';
+// Spotify only accepts https (or 127.0.0.1) redirect addresses. This static page
+// (docs/spotify.html, GitHub Pages) hands the code back to Homebridge in the browser.
+const SPOTIFY_REDIRECT_URI = 'https://dress13.github.io/homebridge-bose-soundtouch/spotify.html';
+const SPOTIFY_LOGIN_TIMEOUT = 10 * 60 * 1000;
 // 'streaming' lets the plugin sign a speaker in to this account (local Spotify Connect API)
 const SPOTIFY_SCOPE = 'user-read-playback-state user-modify-playback-state streaming';
 const SPOTIFY_TIMEOUT = 8000;
@@ -42,6 +45,8 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
 
     // Spotify account login for Spotify presets (Web API / Spotify Connect)
     this.spotifyPending = null;
+    this.spotifyListener = null;
+    this.spotifyListenerTimer = undefined;
     this.onRequest('/spotifyStatus', this.spotifyStatus.bind(this));
     this.onRequest('/spotifyAuthUrl', this.spotifyAuthUrl.bind(this));
     this.onRequest('/spotifyAuthFinish', this.spotifyAuthFinish.bind(this));
@@ -423,8 +428,23 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
     if (!/^[0-9a-f]{32}$/i.test(clientId)) {
       return { error: 'The Client ID must be the 32-character ID from your Spotify developer app' };
     }
+    this.spotifyStopListener();
+
+    // Temporary listener the redirect page sends the browser back to, so the code
+    // arrives without copy & paste. uiHost = host name the browser uses for Homebridge.
+    const uiHost = String((payload && payload.uiHost) || '').trim();
+    let returnUrl = '';
+    if (/^[A-Za-z0-9.-]+$/.test(uiHost)) {
+      try {
+        const port = await this.spotifyStartListener();
+        returnUrl = `http://${uiHost}:${port}/spotify-callback`;
+      } catch {
+        // no listener: the user pastes the address manually
+      }
+    }
+
     const verifier = crypto.randomBytes(48).toString('base64url');
-    const state = crypto.randomBytes(8).toString('hex');
+    const state = crypto.randomBytes(8).toString('hex') + '.' + Buffer.from(returnUrl).toString('base64url');
     this.spotifyPending = { clientId, verifier, state };
     const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
       client_id: clientId,
@@ -435,20 +455,68 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
       code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'),
       scope: SPOTIFY_SCOPE,
     });
-    return { url };
+    return { url, automatic: returnUrl !== '' };
   }
 
-  // Step 2: the user pastes the address the browser was redirected to
-  async spotifyAuthFinish(payload) {
-    const pending = this.spotifyPending;
-    if (!pending) {
-      return { error: 'Please click "Connect Spotify" first' };
+  spotifyStartListener() {
+    return new Promise((resolve, reject) => {
+      const server = http.createServer(async (req, res) => {
+        const url = new URL(req.url, 'http://localhost');
+        if (url.pathname !== '/spotify-callback') {
+          res.writeHead(404);
+          res.end();
+          return;
+        }
+        const result = await this.spotifyExchange(url.searchParams);
+        const text = result.error
+          ? `Spotify login failed: ${result.error}`
+          : `Spotify connected${result.user ? ' as ' + result.user : ''}. You can close this window and return to Homebridge.`;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+          + '<title>Spotify</title><body style="font-family: -apple-system, Segoe UI, sans-serif; padding: 10vh 24px; text-align: center;">'
+          + `<h2 style="color: ${result.error ? '#dc3545' : '#198754'};">${text.replace(/[<>&]/g, '')}</h2></body>`);
+        if (!result.error) {
+          this.pushEvent('spotify-connected', result);
+          this.spotifyStopListener();
+        }
+      });
+      server.on('error', reject);
+      server.listen(0, () => {
+        this.spotifyListener = server;
+        this.spotifyListenerTimer = setTimeout(() => this.spotifyStopListener(), SPOTIFY_LOGIN_TIMEOUT);
+        resolve(server.address().port);
+      });
+    });
+  }
+
+  spotifyStopListener() {
+    clearTimeout(this.spotifyListenerTimer);
+    if (this.spotifyListener) {
+      this.spotifyListener.close();
+      this.spotifyListener = null;
     }
+  }
+
+  // Fallback: the user pastes the address of the redirect page
+  async spotifyAuthFinish(payload) {
     let params;
     try {
       params = new URL(String((payload && payload.redirectUrl) || '').trim()).searchParams;
     } catch {
-      return { error: 'That is not a valid address. Paste the full address starting with http://127.0.0.1:8888/callback' };
+      return { error: 'That is not a valid address. Paste the full address shown after the Spotify login.' };
+    }
+    const result = await this.spotifyExchange(params);
+    if (!result.error) {
+      this.spotifyStopListener();
+    }
+    return result;
+  }
+
+  // Step 2: turn the login code into tokens and store them
+  async spotifyExchange(params) {
+    const pending = this.spotifyPending;
+    if (!pending) {
+      return { error: 'Please click "Connect Spotify" first' };
     }
     if (params.get('error')) {
       return { error: `Spotify declined the login: ${params.get('error')}` };
@@ -473,7 +541,7 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
       });
       const token = await tokenResponse.json();
       if (!tokenResponse.ok || !token.refresh_token) {
-        return { error: `Spotify login failed: ${token.error_description || token.error || tokenResponse.status}` };
+        return { error: `${token.error_description || token.error || tokenResponse.status}` };
       }
 
       let user = '';
@@ -495,9 +563,9 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
         user,
       }, null, 2), { mode: 0o600 });
       this.spotifyPending = null;
-      return { connected: true, user, clientId: pending.clientId };
+      return { connected: true, user, clientId: pending.clientId, redirectUri: SPOTIFY_REDIRECT_URI };
     } catch (error) {
-      return { error: `Spotify login failed: ${error.name === 'TimeoutError' ? 'Timeout' : error.message}` };
+      return { error: error.name === 'TimeoutError' ? 'Timeout' : error.message };
     }
   }
 

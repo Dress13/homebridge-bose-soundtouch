@@ -215,10 +215,12 @@ Seit der Cloud-Abschaltung kann sich die Box nicht mehr selbst bei Spotify anmel
 
 Einrichtung (einmalig, Spotify Premium nötig):
 
-1. Auf [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) eine kostenlose App anlegen, mit Redirect URI `http://127.0.0.1:8888/callback` und Haken bei "Web API".
-2. In den Plugin-Einstellungen im Abschnitt **Spotify** die Client ID eintragen, **Connect Spotify** klicken, anmelden und zustimmen.
-3. Der Browser landet auf einer Fehlerseite für `127.0.0.1` (das ist richtig so). Die komplette Adresse aus der Adresszeile bei **Finish login** einfügen.
+1. Auf [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) eine kostenlose App anlegen, mit Redirect URI `https://dress13.github.io/homebridge-bose-soundtouch/spotify.html` und Haken bei "Web API". Die Plugin-Einstellungen zeigen diese Schritte mit Kopieren-Knopf.
+2. In den Plugin-Einstellungen im Abschnitt **Spotify** die Client ID der App eintragen und **Connect Spotify** klicken.
+3. Bei Spotify anmelden und zustimmen. Du landest automatisch wieder bei Homebridge, die Einstellungen zeigen "Connected".
 4. Fertig. Vor jedem Start meldet das Plugin die Box über deren lokale Spotify-Connect-Schnittstelle an diesem Konto an. Es spielt also keine Rolle, wer zuletzt auf die Box gestreamt hat (z.B. ein Familienmitglied vom Handy).
+
+Spotify akzeptiert nur `https`-Adressen als Rücksprung. Die Anmeldung läuft deshalb über eine kleine statische Seite aus diesem Repository ([docs/spotify.html](docs/spotify.html)). Sie reicht den Anmelde-Code in deinem Browser an dein Homebridge weiter und speichert nichts. Kann der Browser Homebridge nicht direkt erreichen (manche Docker-Setups), zeigt die Seite die Adresse an, die du bei **Finish** einfügst. Ein Passwort wird nirgends gespeichert.
 
 Die Anmeldung liegt in `bose-soundtouch-spotify.json` im Homebridge-Storage-Ordner, nicht in der `config.json`. Ein Client Secret wird nicht gebraucht.
 

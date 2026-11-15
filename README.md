@@ -246,10 +246,12 @@ Since the cloud shutdown the speaker can no longer sign in to Spotify by itself 
 
 Setup (once, requires Spotify Premium):
 
-1. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with Redirect URI `http://127.0.0.1:8888/callback` and "Web API" checked.
-2. In the plugin settings, section **Spotify**: paste the Client ID, click **Connect Spotify**, sign in and agree.
-3. The browser ends on an error page for `127.0.0.1` (expected). Copy the full address from the address bar into **Finish login**.
+1. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with Redirect URI `https://dress13.github.io/homebridge-bose-soundtouch/spotify.html` and "Web API" checked. The plugin settings show these steps with a copy button.
+2. In the plugin settings, section **Spotify**: paste the app's Client ID and click **Connect Spotify**.
+3. Sign in at Spotify and agree. You are sent back to Homebridge automatically and the settings show "Connected".
 4. Done. Before each start the plugin signs the speaker in to this account through the speaker's local Spotify Connect API, so it does not matter who streamed to it last (e.g. a family member from their phone).
+
+Spotify only accepts `https` redirect addresses, so the login passes through a small static page hosted with this repository ([docs/spotify.html](docs/spotify.html)). It forwards the login code to your Homebridge inside your browser and stores nothing. If your browser cannot reach Homebridge directly (some Docker setups), the page shows the address to copy into **Finish** instead. No password is stored anywhere.
 
 The login is stored in `bose-soundtouch-spotify.json` in the Homebridge storage folder, not in `config.json`. No client secret is needed.
 
