@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.23.0
+- **Shuffle for Spotify presets** - The "Playback Order" option (and the `shuffle` config field) now also works for Spotify presets. After the playlist starts, the plugin waits until the speaker is actually playing, enables shuffle and skips once so playback starts on a random track. Runs in the background, so the HomeKit switch responds immediately. "In order" leaves Spotify's own shuffle setting untouched.
+
 ## v1.22.0
 - **Radio station search** - Radio presets in the custom UI get a "Search station" button next to the Stream URL. It searches [radio-browser.info](https://www.radio-browser.info) by name (optional country code, "MP3 only" filter) and fills in the stream URL and, if empty, the preset name. The public API is only contacted when you search.
 
