@@ -1195,6 +1195,16 @@ export class SoundTouchAccessory {
             sourceAccount: config.sourceAccount,
             name: config.name,
           });
+          if (config.shuffle === true) {
+            // Runs in the background so the HomeKit switch responds immediately
+            this.client.enableShuffleWhenPlaying('SPOTIFY')
+              .then(ok => {
+                if (!ok) {
+                  this.platform.log.warn(`${config.name}: Spotify did not start in time, shuffle not enabled`);
+                }
+              })
+              .catch(err => this.platform.log.warn(`${config.name}: Failed to enable shuffle:`, err));
+          }
         }
         break;
 

@@ -24,7 +24,7 @@ A Homebridge plugin for controlling Bose SoundTouch speakers via Apple HomeKit.
 - **Announcements** - Momentary switches that play an audio URL (doorbell, TTS) and then restore the previous playback and volume
 - **Playing Sensor** - Optional occupancy sensor that is active while music plays - enables HomeKit automations like "when music starts, dim the lights"
 - **Volume Limit** - Optional per-device maximum volume, also enforced for changes made outside HomeKit
-- **Shuffle** - NAS/DLNA presets can play their tracks in random order
+- **Shuffle** - NAS/DLNA and Spotify presets can play their tracks in random order
 - **Input Sync** - Source changes made in the Bose app or on the device are mirrored in the HomeKit input menu (AUX/Bluetooth)
 - **Auto-Reconnect** - Offline devices retry every 30 seconds
 - **Real-time Updates** - WebSocket connection for instant status changes in HomeKit
@@ -220,7 +220,7 @@ In the Custom UI the "Defaults for all devices" section holds the global values.
 | `sourceAccount` | string | Account ID (for `spotify`, `amazon`, `deezer`) |
 | `nasLocation` | string | DLNA Object-ID (for `nas` only) |
 | `nasServer` | string | Server-ID + "/0" (for `nas` only) |
-| `shuffle` | boolean | Play tracks in random order (for `nas` only, default: `false`) |
+| `shuffle` | boolean | Play tracks in random order (for `nas` and `spotify`, default: `false`) |
 
 **Note:** `tunein` is no longer supported (Bose Cloud shut down). Use `radio` with the direct HTTP stream URL instead.
 

@@ -934,6 +934,33 @@ export class SoundTouchClient {
     await this.pressKey(enabled ? 'SHUFFLE_ON' : 'SHUFFLE_OFF');
   }
 
+  /**
+   * Wait until the given source is actually playing, then enable shuffle and
+   * skip once so playback starts on a random track instead of track 1.
+   * The SHUFFLE_ON key is ignored while the source is still loading.
+   */
+  async enableShuffleWhenPlaying(source: string, timeoutMs = 15_000): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      let np: NowPlaying;
+      try {
+        np = await this.getNowPlaying();
+      } catch {
+        continue;
+      }
+      if (np.source !== source || np.playStatus !== 'PLAY_STATE') {
+        continue;
+      }
+      if (np.shuffleSetting !== 'SHUFFLE_ON') {
+        await this.setShuffle(true);
+      }
+      await this.nextTrack();
+      return true;
+    }
+    return false;
+  }
+
   async setRepeat(mode: 'off' | 'one' | 'all'): Promise<void> {
     const keyMap = {
       'off': 'REPEAT_OFF' as KeyValue,

@@ -1045,6 +1045,13 @@
               <label>Spotify URI</label>
               <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${s}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:...">
             </div>
+            <div class="form-group">
+              <label>Playback Order</label>
+              <select onchange="updatePreset(${s}, ${pi}, 'shuffle', this.value === 'true')">
+                <option value="false" ${preset.shuffle !== true ? 'selected' : ''}>In order</option>
+                <option value="true" ${preset.shuffle === true ? 'selected' : ''}>Shuffle (random order)</option>
+              </select>
+            </div>
           ` : ''}
           ${['amazon', 'deezer'].includes(preset.type) ? `
             <div class="form-group">

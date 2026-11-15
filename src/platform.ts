@@ -26,7 +26,7 @@ export interface PresetConfig {
   sourceAccount?: string;    // Account identifier for streaming services
   nasLocation?: string;      // For NAS/DLNA: DLNA Object-ID
   nasServer?: string;        // For NAS/DLNA: Server-ID + "/0"
-  shuffle?: boolean;         // For NAS/DLNA: play tracks in random order
+  shuffle?: boolean;         // For NAS/DLNA and Spotify: play tracks in random order
 }
 
 // Announcement configuration (momentary switch that plays a URL, then restores playback)

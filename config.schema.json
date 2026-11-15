@@ -385,7 +385,7 @@
                   "title": "Shuffle",
                   "type": "boolean",
                   "default": false,
-                  "description": "Titel in zufälliger Reihenfolge abspielen (nur NAS/DLNA) / Play tracks in random order (NAS/DLNA only)"
+                  "description": "Titel in zufälliger Reihenfolge abspielen (NAS/DLNA und Spotify) / Play tracks in random order (NAS/DLNA and Spotify)"
                 }
               }
             }
@@ -762,7 +762,7 @@
                     "title": "Shuffle",
                     "type": "boolean",
                     "default": false,
-                    "description": "Titel in zufälliger Reihenfolge abspielen (nur NAS/DLNA) / Play tracks in random order (NAS/DLNA only)"
+                    "description": "Titel in zufälliger Reihenfolge abspielen (NAS/DLNA und Spotify) / Play tracks in random order (NAS/DLNA and Spotify)"
                   }
                 }
               }

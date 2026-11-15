@@ -24,7 +24,7 @@ Ein Homebridge Plugin zur Steuerung von Bose SoundTouch Lautsprechern via Apple 
 - **Ansagen** - Momentschalter, die eine Audio-URL abspielen (Klingel, TTS) und danach die vorherige Wiedergabe und Lautstärke wiederherstellen
 - **Wiedergabe-Sensor** - Optionaler Belegungssensor, der aktiv ist, solange Musik läuft - ermöglicht HomeKit-Automationen wie "wenn Musik startet, dimme das Licht"
 - **Lautstärke-Limit** - Optionale Maximal-Lautstärke pro Gerät, auch für Änderungen außerhalb von HomeKit
-- **Shuffle** - NAS/DLNA-Presets können ihre Titel in zufälliger Reihenfolge abspielen
+- **Shuffle** - NAS/DLNA- und Spotify-Presets können ihre Titel in zufälliger Reihenfolge abspielen
 - **Eingangs-Sync** - Quellenwechsel über die Bose-App oder am Gerät werden im HomeKit-Eingangsmenü gespiegelt (AUX/Bluetooth)
 - **Auto-Reconnect** - Offline-Geräte werden alle 30s erneut versucht
 - **Echtzeit-Updates** - WebSocket-Verbindung für sofortige Status-Änderungen in HomeKit
