@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.25.0
+- **Spotify login without copy & paste** - After you agree at Spotify you are sent back to Homebridge automatically and the settings switch to "Connected". The error page for `127.0.0.1` is gone. If the browser cannot reach Homebridge directly, a page with a copy button appears instead.
+- **Action needed if you set up Spotify in 1.24.0** - The Redirect URI changed. Add `https://dress13.github.io/homebridge-bose-soundtouch/spotify.html` to your Spotify developer app (Settings, Redirect URIs), then click "Connect Spotify" again.
+- **Step-by-step setup** - The Spotify section in the custom UI now lists the setup steps with a copy button for the Redirect URI.
+
 ## v1.24.0
 - **Spotify presets work again** - Since the Bose cloud shutdown the speaker rejects Spotify presets with `MUSIC_SERVICE_ACCOUNT_LOGIN_FAILED`. The plugin now starts them through the Spotify Web API on the speaker as a Spotify Connect device (wakes it from standby). One-time setup in the new **Spotify** section of the custom UI: paste the Client ID of your own free Spotify developer app and sign in (Spotify Premium required). See README, "Spotify Presets".
 - **Shuffle for Spotify** - "Playback Order" is now applied via Spotify itself: "Shuffle" turns shuffle on and skips to a random track, "In order" turns it off. This replaces the 1.23.0 approach, which depended on the broken speaker login.
