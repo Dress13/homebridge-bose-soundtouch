@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.25.1
+- **Fix: Spotify preset hangs without sound** - After a while the speaker's Spotify sign-in went stale; the preset then switched the speaker to Spotify but it stayed in "buffering" forever ("Spotify did not start playing"). The plugin now signs the speaker in with a fresh token before every start and briefly retries while Spotify registers the speaker.
+- **Fix: shuffle no longer interrupts playback** - Setting shuffle reuses the device found for the start instead of signing the speaker in a second time.
+
 ## v1.25.0
 - **Spotify login without copy & paste** - After you agree at Spotify you are sent back to Homebridge automatically and the settings switch to "Connected". The error page for `127.0.0.1` is gone. If the browser cannot reach Homebridge directly, a page with a copy button appears instead.
 - **Action needed if you set up Spotify in 1.24.0** - The Redirect URI changed. Add `https://dress13.github.io/homebridge-bose-soundtouch/spotify.html` to your Spotify developer app (Settings, Redirect URIs), then click "Connect Spotify" again.
