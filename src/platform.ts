@@ -14,6 +14,7 @@ import { SoundTouchAccessory } from './soundtouchAccessory';
 import { SoundTouchDiscovery, DiscoveredDevice } from './discovery';
 import { SoundTouchClient } from './soundtouchClient';
 import { DeviceDefaults, resolveDeviceConfig } from './configDefaults';
+import { SpotifyApi } from './spotifyApi';
 
 // Preset configuration for a single slot
 export interface PresetConfig {
@@ -23,7 +24,7 @@ export interface PresetConfig {
   url?: string;              // For radio streams (http URLs)
   spotifyUri?: string;       // For Spotify (spotify:playlist:xxx, spotify:album:xxx)
   contentId?: string;        // For TuneIn, Amazon, Deezer
-  sourceAccount?: string;    // Account identifier for streaming services
+  sourceAccount?: string;    // Account identifier for streaming services (not needed for Spotify once connected)
   nasLocation?: string;      // For NAS/DLNA: DLNA Object-ID
   nasServer?: string;        // For NAS/DLNA: Server-ID + "/0"
   shuffle?: boolean;         // For NAS/DLNA and Spotify: play tracks in random order
@@ -73,11 +74,14 @@ export interface SoundTouchPlatformConfig extends PlatformConfig {
   defaults?: DeviceDefaults;   // Global settings, overridden per device
   autoDiscover?: boolean;
   discoveryTimeout?: number;
+  spotifyClientId?: string;    // Client ID of the user's Spotify developer app (login runs in the custom UI)
 }
 
 export class SoundTouchPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service;
   public readonly Characteristic: typeof Characteristic;
+
+  public readonly spotify: SpotifyApi;
 
   public readonly accessories: PlatformAccessory[] = [];
   private readonly soundTouchAccessories: Map<string, SoundTouchAccessory> = new Map();
@@ -93,6 +97,7 @@ export class SoundTouchPlatform implements DynamicPlatformPlugin {
   ) {
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
+    this.spotify = new SpotifyApi(api.user.storagePath());
     this.log.debug('Finished initializing platform:', this.config.name);
 
     this.api.on('didFinishLaunching', () => {

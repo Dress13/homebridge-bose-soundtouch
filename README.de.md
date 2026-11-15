@@ -42,7 +42,7 @@ Die Bose SoundTouch Cloud wurde am 6. Mai 2026 abgeschaltet. Dieses Plugin erset
 | Radio-Streams | Über Bose Cloud | Direkt per DLNA (Port 8091) |
 | NAS/DLNA | Über STORED_MUSIC Source | Direkt per DLNA (Port 8091) |
 | Hardware-Buttons | Über Bose Cloud Presets | WebSocket-Interception + DLNA |
-| Spotify | Spotify Connect | Spotify Connect (unverändert) |
+| Spotify | Spotify Connect + Presets über Bose-Login | Spotify Connect (unverändert); Presets über dein Spotify-Konto (Web API), siehe [Spotify-Presets](#spotify-presets) |
 | Amazon Music | Über Bose Cloud | Direkt (unverändert) |
 | TuneIn | Über Bose Cloud | **Nicht mehr verfügbar** - nutze HTTP-Streams stattdessen |
 
@@ -193,9 +193,9 @@ In der Custom UI stehen die globalen Werte im Bereich „Defaults for all device
 | `name` | string | Anzeigename in HomeKit |
 | `type` | string | `radio`, `spotify`, `amazon`, `deezer`, `nas` |
 | `url` | string | HTTP Stream URL (nur für `radio`) - HTTPS wird automatisch zu HTTP konvertiert |
-| `spotifyUri` | string | Spotify URI (nur für `spotify`) |
+| `spotifyUri` | string | Spotify URI oder Teilen-Link (nur für `spotify`) |
 | `contentId` | string | Content ID (für `amazon`, `deezer`) |
-| `sourceAccount` | string | Account ID (für `spotify`, `amazon`, `deezer`) |
+| `sourceAccount` | string | Account ID (für `amazon`, `deezer`; für `spotify` nicht nötig) |
 | `nasLocation` | string | DLNA Object-ID (nur für `nas`) |
 | `nasServer` | string | Server-ID + "/0" (nur für `nas`) |
 
@@ -208,6 +208,19 @@ Für `radio`-Presets bietet die Custom UI neben dem Feld „Stream URL“ den Bu
 ### Radio & NAS (nach Cloud-Shutdown)
 
 Die Bose-Firmware hat nach dem Cloud-Shutdown die Source-Typen `LOCAL_INTERNET_RADIO`, `INTERNET_RADIO` und `STORED_MUSIC` deaktiviert. Das Plugin nutzt stattdessen **DLNA/UPnP auf Port 8091** (`SetAVTransportURI`), um Audio-URLs direkt an die Box zu senden.
+
+### Spotify-Presets
+
+Seit der Cloud-Abschaltung kann sich die Box nicht mehr selbst bei Spotify anmelden (sie meldet `MUSIC_SERVICE_ACCOUNT_LOGIN_FAILED`). Spotify Connect läuft lokal weiter. Das Plugin startet Spotify-Presets deshalb über die Spotify Web API auf der Box als Connect-Gerät. Die Box wacht dabei selbst aus dem Standby auf, `shuffle` wird nach dem Start gesetzt.
+
+Einrichtung (einmalig, Spotify Premium nötig):
+
+1. Auf [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) eine kostenlose App anlegen, mit Redirect URI `http://127.0.0.1:8888/callback` und Haken bei "Web API".
+2. In den Plugin-Einstellungen im Abschnitt **Spotify** die Client ID eintragen, **Connect Spotify** klicken, anmelden und zustimmen.
+3. Der Browser landet auf einer Fehlerseite für `127.0.0.1` (das ist richtig so). Die komplette Adresse aus der Adresszeile bei **Finish login** einfügen.
+4. Fertig. Vor jedem Start meldet das Plugin die Box über deren lokale Spotify-Connect-Schnittstelle an diesem Konto an. Es spielt also keine Rolle, wer zuletzt auf die Box gestreamt hat (z.B. ein Familienmitglied vom Handy).
+
+Die Anmeldung liegt in `bose-soundtouch-spotify.json` im Homebridge-Storage-Ordner, nicht in der `config.json`. Ein Client Secret wird nicht gebraucht.
 
 ### Hardware-Buttons
 

@@ -386,6 +386,43 @@
     </div>
   </div>
 
+  <!-- Spotify account (needed for Spotify presets since the Bose cloud shutdown) -->
+  <div class="section">
+    <h4>Spotify</h4>
+    <small style="display: block; color: #6c757d; margin-bottom: 10px;">
+      Spotify presets are started through your Spotify account (Spotify Connect). Requires Spotify Premium and a free
+      developer app: create one at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>
+      with Redirect URI <code id="spotifyRedirect">http://127.0.0.1:8888/callback</code> and "Web API" checked, then copy its Client ID here.
+    </small>
+    <div id="spotifyState" style="margin-bottom: 10px; font-weight: 600;"></div>
+    <div class="form-group">
+      <label>Client ID</label>
+      <div style="display: flex; gap: 10px;">
+        <input type="text" id="spotifyClientId" placeholder="32-character Client ID" style="flex: 1;">
+        <button class="btn btn-primary" onclick="spotifyConnect()">Connect Spotify</button>
+        <button class="btn btn-danger" id="spotifyDisconnectBtn" onclick="spotifyDisconnect()" style="display: none;">Disconnect</button>
+      </div>
+    </div>
+    <div id="spotifyFinish" style="display: none;">
+      <div class="form-group">
+        <label>Finish login</label>
+        <small style="display: block; margin-bottom: 6px;">
+          1. <a id="spotifyLoginLink" href="#" target="_blank" rel="noopener">Open the Spotify login</a> and agree.
+          2. The browser then shows an error page ("can't connect to 127.0.0.1") - that is expected.
+          Copy the full address from the address bar and paste it here.
+        </small>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="spotifyRedirectUrl" placeholder="http://127.0.0.1:8888/callback?code=..." style="flex: 1;">
+          <button class="btn btn-primary" onclick="spotifyFinish()">Finish</button>
+        </div>
+      </div>
+    </div>
+    <div id="spotifyMsg" style="color: #dc3545;"></div>
+    <small style="display: block; color: #6c757d; margin-top: 6px;">
+      The plugin signs each speaker in to this account by itself before playing, no matter who streamed to it last.
+    </small>
+  </div>
+
   <!-- Global Defaults (apply to all devices, overridable per device) -->
   <div class="section">
     <div class="collapsible-header">
@@ -476,6 +513,7 @@
     // Initialize
     (async () => {
       await loadConfig();
+      spotifyLoadStatus();
       render();
     })();
 
@@ -1043,7 +1081,8 @@
           ${preset.type === 'spotify' ? `
             <div class="form-group">
               <label>Spotify URI</label>
-              <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${s}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:...">
+              <input type="text" value="${preset.spotifyUri || ''}" onchange="updatePreset(${s}, ${pi}, 'spotifyUri', this.value)" placeholder="spotify:playlist:... or https://open.spotify.com/playlist/...">
+              <small>Spotify link or URI. Needs the Spotify account connected above.</small>
             </div>
             <div class="form-group">
               <label>Playback Order</label>
@@ -1059,7 +1098,7 @@
               <input type="text" value="${preset.contentId || ''}" onchange="updatePreset(${s}, ${pi}, 'contentId', this.value)">
             </div>
           ` : ''}
-          ${['spotify', 'amazon', 'deezer'].includes(preset.type) ? `
+          ${['amazon', 'deezer'].includes(preset.type) ? `
             <div class="form-group">
               <label>Account</label>
               <input type="text" value="${preset.sourceAccount || ''}" onchange="updatePreset(${s}, ${pi}, 'sourceAccount', this.value)">
@@ -1355,6 +1394,68 @@
         renderDiscoveredDevices();
         showStatus(`${added} device(s) added!`, 'success');
       }
+    }
+
+    // ---- Spotify account ----
+    function spotifyRender(status) {
+      const state = document.getElementById('spotifyState');
+      if (status.redirectUri) document.getElementById('spotifyRedirect').textContent = status.redirectUri;
+      if (status.connected) {
+        state.textContent = 'Connected' + (status.user ? ' as ' + status.user : '');
+        state.style.color = '#198754';
+        document.getElementById('spotifyClientId').value = status.clientId || '';
+        document.getElementById('spotifyFinish').style.display = 'none';
+      } else {
+        state.textContent = 'Not connected';
+        state.style.color = '#6c757d';
+      }
+      document.getElementById('spotifyDisconnectBtn').style.display = status.connected ? '' : 'none';
+    }
+
+    async function spotifyLoadStatus() {
+      try {
+        const status = await homebridge.request('/spotifyStatus');
+        if (!status.connected && config.spotifyClientId) {
+          document.getElementById('spotifyClientId').value = config.spotifyClientId;
+        }
+        spotifyRender(status);
+      } catch (e) {
+        document.getElementById('spotifyMsg').textContent = 'Spotify status failed: ' + e.message;
+      }
+    }
+
+    async function spotifyConnect() {
+      const msg = document.getElementById('spotifyMsg');
+      msg.textContent = '';
+      const clientId = document.getElementById('spotifyClientId').value.trim();
+      const response = await homebridge.request('/spotifyAuthUrl', { clientId });
+      if (response.error) {
+        msg.textContent = response.error;
+        return;
+      }
+      config.spotifyClientId = clientId;
+      await saveConfig();
+      document.getElementById('spotifyLoginLink').href = response.url;
+      document.getElementById('spotifyRedirectUrl').value = '';
+      document.getElementById('spotifyFinish').style.display = '';
+      window.open(response.url, '_blank', 'noopener');
+    }
+
+    async function spotifyFinish() {
+      const msg = document.getElementById('spotifyMsg');
+      msg.textContent = '';
+      const redirectUrl = document.getElementById('spotifyRedirectUrl').value;
+      const response = await homebridge.request('/spotifyAuthFinish', { redirectUrl });
+      if (response.error) {
+        msg.textContent = response.error;
+        return;
+      }
+      spotifyRender(response);
+      showStatus('Spotify connected' + (response.user ? ' as ' + response.user : ''), 'success');
+    }
+
+    async function spotifyDisconnect() {
+      spotifyRender(await homebridge.request('/spotifyDisconnect'));
     }
 
     function showStatus(msg, type) {

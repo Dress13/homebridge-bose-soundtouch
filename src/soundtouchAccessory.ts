@@ -5,6 +5,7 @@ import {
 } from 'homebridge';
 import { SoundTouchPlatform, DeviceConfig, PresetConfig, AnnouncementConfig } from './platform';
 import { SoundTouchClient, DeviceInfo, ContentItem, ZoneMember } from './soundtouchClient';
+import { normalizeSpotifyUri } from './spotifyApi';
 import {
   SoundTouchWebSocket, VolumeUpdate, NowPlayingUpdate, PresetSelectionUpdate,
 } from './soundtouchWebSocket';
@@ -1187,25 +1188,7 @@ export class SoundTouchAccessory {
         break;
 
       case 'spotify':
-        if (config.spotifyUri && config.sourceAccount) {
-          await this.client.playSpotify(config.spotifyUri, config.sourceAccount);
-          await this.client.storePreset(config.slot, {
-            source: 'SPOTIFY',
-            location: config.spotifyUri,
-            sourceAccount: config.sourceAccount,
-            name: config.name,
-          });
-          if (config.shuffle === true) {
-            // Runs in the background so the HomeKit switch responds immediately
-            this.client.enableShuffleWhenPlaying('SPOTIFY')
-              .then(ok => {
-                if (!ok) {
-                  this.platform.log.warn(`${config.name}: Spotify did not start in time, shuffle not enabled`);
-                }
-              })
-              .catch(err => this.platform.log.warn(`${config.name}: Failed to enable shuffle:`, err));
-          }
-        }
+        await this.playSpotifyPreset(config);
         break;
 
       case 'amazon':
@@ -1255,6 +1238,60 @@ export class SoundTouchAccessory {
       default:
         this.platform.log.warn(`Unknown preset type: ${config.type}`);
     }
+  }
+
+  private async playSpotifyPreset(config: PresetConfig): Promise<void> {
+    if (!config.spotifyUri) {
+      this.platform.log.warn(`${config.name}: no Spotify URI configured`);
+      return;
+    }
+    const spotify = this.platform.spotify;
+
+    // Preferred: Spotify Web API (Spotify Connect). Works without the Bose cloud.
+    if (spotify.isConnected()) {
+      const target = { host: this.deviceConfig.host, name: this.deviceInfo?.name || this.accessory.displayName };
+      try {
+        await spotify.play(target, config.spotifyUri);
+      } catch (error) {
+        this.platform.log.error(`${config.name}: ${error instanceof Error ? error.message : error}`);
+        return;
+      }
+      // Shuffle needs running playback; do it in the background so HomeKit responds immediately
+      this.client.waitUntilPlaying('SPOTIFY')
+        .then(async playing => {
+          if (!playing) {
+            this.platform.log.warn(`${config.name}: Spotify did not start playing on ${this.accessory.displayName}`);
+            return;
+          }
+          await spotify.setShuffle(target, config.shuffle === true);
+        })
+        .catch(err => this.platform.log.warn(`${config.name}: Failed to set shuffle:`, err.message || err));
+      return;
+    }
+
+    // Legacy: the speaker's own Spotify login (needs the Bose cloud, fails since its shutdown)
+    if (!config.sourceAccount) {
+      this.platform.log.warn(
+        `${config.name}: Spotify is not connected. Connect your Spotify account in the plugin settings.`,
+      );
+      return;
+    }
+    await this.client.playSpotify(normalizeSpotifyUri(config.spotifyUri), config.sourceAccount);
+    this.client.waitUntilPlaying('SPOTIFY')
+      .then(async playing => {
+        if (!playing) {
+          this.platform.log.warn(
+            `${config.name}: the speaker could not start Spotify by itself (its Bose cloud login no longer works). `
+            + 'Connect your Spotify account in the plugin settings.',
+          );
+          return;
+        }
+        if (config.shuffle === true) {
+          await this.client.setShuffle(true);
+          await this.client.nextTrack();
+        }
+      })
+      .catch(err => this.platform.log.warn(`${config.name}: Failed to enable shuffle:`, err.message || err));
   }
 
   private initRetryTimer?: ReturnType<typeof setTimeout>;

@@ -42,7 +42,7 @@ The Bose SoundTouch Cloud was shut down on May 6, 2026. This plugin fully replac
 | Radio Streams | Via Bose Cloud | Direct via DLNA (port 8091) |
 | NAS/DLNA | Via STORED_MUSIC source | Direct via DLNA (port 8091) |
 | Hardware Buttons | Via Bose Cloud presets | WebSocket interception + DLNA |
-| Spotify | Spotify Connect | Spotify Connect (unchanged) |
+| Spotify | Spotify Connect + presets via Bose login | Spotify Connect (unchanged); presets via your Spotify account (Web API), see [Spotify Presets](#spotify-presets) |
 | Amazon Music | Via Bose Cloud | Direct (unchanged) |
 | TuneIn | Via Bose Cloud | **No longer available** - use HTTP streams instead |
 
@@ -133,7 +133,7 @@ This plugin uses **External Accessories**:
               "name": "My Playlist",
               "type": "spotify",
               "spotifyUri": "spotify:playlist:37i9dQZF1DX4WYpdgoIcn6",
-              "sourceAccount": "your-spotify-username"
+              "shuffle": true
             },
             {
               "slot": 3,
@@ -215,9 +215,9 @@ In the Custom UI the "Defaults for all devices" section holds the global values.
 | `name` | string | Display name in HomeKit |
 | `type` | string | `radio`, `spotify`, `amazon`, `deezer`, `nas` |
 | `url` | string | HTTP stream URL (for `radio` only) - HTTPS auto-converted to HTTP |
-| `spotifyUri` | string | Spotify URI (for `spotify` only) |
+| `spotifyUri` | string | Spotify URI or share link (for `spotify` only) |
 | `contentId` | string | Content ID (for `amazon`, `deezer`) |
-| `sourceAccount` | string | Account ID (for `spotify`, `amazon`, `deezer`) |
+| `sourceAccount` | string | Account ID (for `amazon`, `deezer`; not needed for `spotify`) |
 | `nasLocation` | string | DLNA Object-ID (for `nas` only) |
 | `nasServer` | string | Server-ID + "/0" (for `nas` only) |
 | `shuffle` | boolean | Play tracks in random order (for `nas` and `spotify`, default: `false`) |
@@ -239,6 +239,19 @@ For `radio` presets the Custom UI offers a "Search station" button next to the S
 ### Radio & NAS (Post Cloud Shutdown)
 
 The Bose firmware disabled `LOCAL_INTERNET_RADIO`, `INTERNET_RADIO` and `STORED_MUSIC` source types after the cloud shutdown. This plugin uses **DLNA/UPnP on port 8091** (`SetAVTransportURI`) to send audio URLs directly to the speaker. Track/station names are displayed on the speaker via DIDL-Lite metadata.
+
+### Spotify Presets
+
+Since the cloud shutdown the speaker can no longer sign in to Spotify by itself (it reports `MUSIC_SERVICE_ACCOUNT_LOGIN_FAILED`). Spotify Connect still works locally, so the plugin starts Spotify presets through the Spotify Web API on the speaker as a Connect device. The speaker wakes from standby by itself, and `shuffle` is applied after playback has started.
+
+Setup (once, requires Spotify Premium):
+
+1. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with Redirect URI `http://127.0.0.1:8888/callback` and "Web API" checked.
+2. In the plugin settings, section **Spotify**: paste the Client ID, click **Connect Spotify**, sign in and agree.
+3. The browser ends on an error page for `127.0.0.1` (expected). Copy the full address from the address bar into **Finish login**.
+4. Done. Before each start the plugin signs the speaker in to this account through the speaker's local Spotify Connect API, so it does not matter who streamed to it last (e.g. a family member from their phone).
+
+The login is stored in `bose-soundtouch-spotify.json` in the Homebridge storage folder, not in `config.json`. No client secret is needed.
 
 ### Hardware Buttons
 

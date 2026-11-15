@@ -28,6 +28,11 @@
         "maximum": 60000,
         "description": "Timeout für die automatische Geräteerkennung"
       },
+      "spotifyClientId": {
+        "title": "Spotify Client ID",
+        "type": "string",
+        "description": "Client ID der eigenen Spotify-Developer-App. Die Anmeldung erfolgt in der Plugin-Oberfläche. / Client ID of your Spotify developer app. Sign in via the plugin UI."
+      },
       "defaults": {
         "title": "Globale Einstellungen / Global Defaults",
         "description": "Gelten für alle Geräte. Jedes Gerät kann einzelne Werte überschreiben. Presets werden per Slot, Ansagen per Name zusammengeführt. / Apply to all devices; each device can override single values. Presets merge by slot, announcements by name.",
@@ -359,7 +364,7 @@
                 "spotifyUri": {
                   "title": "Spotify URI",
                   "type": "string",
-                  "description": "Spotify URI (z.B. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)"
+                  "description": "Spotify-Link oder URI (z.B. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)"
                 },
                 "contentId": {
                   "title": "Content ID",
@@ -369,7 +374,7 @@
                 "sourceAccount": {
                   "title": "Account",
                   "type": "string",
-                  "description": "Account-Identifier für Spotify/Amazon/Deezer/NAS"
+                  "description": "Account-Identifier für Amazon/Deezer (für Spotify nicht mehr nötig)"
                 },
                 "nasLocation": {
                   "title": "NAS Location",
@@ -736,7 +741,7 @@
                   "spotifyUri": {
                     "title": "Spotify URI",
                     "type": "string",
-                    "description": "Spotify URI (z.B. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)"
+                    "description": "Spotify-Link oder URI (z.B. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M)"
                   },
                   "contentId": {
                     "title": "Content ID",
@@ -746,7 +751,7 @@
                   "sourceAccount": {
                     "title": "Account",
                     "type": "string",
-                    "description": "Account-Identifier für Spotify/Amazon/Deezer/NAS"
+                    "description": "Account-Identifier für Amazon/Deezer (für Spotify nicht mehr nötig)"
                   },
                   "nasLocation": {
                     "title": "NAS Location",
@@ -955,7 +960,7 @@
                     {
                       "key": "devices[].presets[].sourceAccount",
                       "condition": {
-                        "functionBody": "try { return ['spotify', 'amazon', 'deezer'].includes(model.devices[arrayIndices[0]].presets[arrayIndices[1]].type); } catch(e) { return false; }"
+                        "functionBody": "try { return ['amazon', 'deezer'].includes(model.devices[arrayIndices[0]].presets[arrayIndices[1]].type); } catch(e) { return false; }"
                       }
                     }
                   ]

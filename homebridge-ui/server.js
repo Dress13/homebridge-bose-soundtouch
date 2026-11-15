@@ -1,6 +1,9 @@
 const { HomebridgePluginUiServer } = require('@homebridge/plugin-ui-utils');
 const { Bonjour } = require('bonjour-service');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const { parseStringPromise } = require('xml2js');
 const { version: pluginVersion } = require('../package.json');
 
@@ -10,6 +13,14 @@ const RADIO_BROWSER_HOSTS = [
   'de2.api.radio-browser.info',
 ];
 const RADIO_BROWSER_TIMEOUT = 5000;
+
+// Spotify login (Authorization Code with PKCE, no client secret needed).
+// Keep file name in sync with SPOTIFY_TOKEN_FILE in src/spotifyApi.ts.
+const SPOTIFY_TOKEN_FILE = 'bose-soundtouch-spotify.json';
+const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:8888/callback';
+// 'streaming' lets the plugin sign a speaker in to this account (local Spotify Connect API)
+const SPOTIFY_SCOPE = 'user-read-playback-state user-modify-playback-state streaming';
+const SPOTIFY_TIMEOUT = 8000;
 
 class SoundTouchUiServer extends HomebridgePluginUiServer {
   constructor() {
@@ -28,6 +39,13 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
 
     // Internet radio station search via radio-browser.info
     this.onRequest('/searchRadio', this.searchRadio.bind(this));
+
+    // Spotify account login for Spotify presets (Web API / Spotify Connect)
+    this.spotifyPending = null;
+    this.onRequest('/spotifyStatus', this.spotifyStatus.bind(this));
+    this.onRequest('/spotifyAuthUrl', this.spotifyAuthUrl.bind(this));
+    this.onRequest('/spotifyAuthFinish', this.spotifyAuthFinish.bind(this));
+    this.onRequest('/spotifyDisconnect', this.spotifyDisconnect.bind(this));
 
     // Ready
     this.ready();
@@ -381,6 +399,115 @@ class SoundTouchUiServer extends HomebridgePluginUiServer {
     }
 
     return { error: lastError, stations: [] };
+  }
+
+  spotifyTokenPath() {
+    return path.join(this.homebridgeStoragePath, SPOTIFY_TOKEN_FILE);
+  }
+
+  async spotifyStatus() {
+    try {
+      const token = JSON.parse(fs.readFileSync(this.spotifyTokenPath(), 'utf-8'));
+      if (token.clientId && token.refreshToken) {
+        return { connected: true, user: token.user || '', clientId: token.clientId, redirectUri: SPOTIFY_REDIRECT_URI };
+      }
+    } catch {
+      // not connected
+    }
+    return { connected: false, redirectUri: SPOTIFY_REDIRECT_URI };
+  }
+
+  // Step 1: build the Spotify login URL for the user's own developer app
+  async spotifyAuthUrl(payload) {
+    const clientId = String((payload && payload.clientId) || '').trim();
+    if (!/^[0-9a-f]{32}$/i.test(clientId)) {
+      return { error: 'The Client ID must be the 32-character ID from your Spotify developer app' };
+    }
+    const verifier = crypto.randomBytes(48).toString('base64url');
+    const state = crypto.randomBytes(8).toString('hex');
+    this.spotifyPending = { clientId, verifier, state };
+    const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+      client_id: clientId,
+      response_type: 'code',
+      redirect_uri: SPOTIFY_REDIRECT_URI,
+      state,
+      code_challenge_method: 'S256',
+      code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'),
+      scope: SPOTIFY_SCOPE,
+    });
+    return { url };
+  }
+
+  // Step 2: the user pastes the address the browser was redirected to
+  async spotifyAuthFinish(payload) {
+    const pending = this.spotifyPending;
+    if (!pending) {
+      return { error: 'Please click "Connect Spotify" first' };
+    }
+    let params;
+    try {
+      params = new URL(String((payload && payload.redirectUrl) || '').trim()).searchParams;
+    } catch {
+      return { error: 'That is not a valid address. Paste the full address starting with http://127.0.0.1:8888/callback' };
+    }
+    if (params.get('error')) {
+      return { error: `Spotify declined the login: ${params.get('error')}` };
+    }
+    const code = params.get('code');
+    if (!code || params.get('state') !== pending.state) {
+      return { error: 'The address does not belong to this login attempt. Click "Connect Spotify" again.' };
+    }
+
+    try {
+      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: SPOTIFY_REDIRECT_URI,
+          client_id: pending.clientId,
+          code_verifier: pending.verifier,
+        }),
+        signal: AbortSignal.timeout(SPOTIFY_TIMEOUT),
+      });
+      const token = await tokenResponse.json();
+      if (!tokenResponse.ok || !token.refresh_token) {
+        return { error: `Spotify login failed: ${token.error_description || token.error || tokenResponse.status}` };
+      }
+
+      let user = '';
+      try {
+        const me = await fetch('https://api.spotify.com/v1/me', {
+          headers: { Authorization: `Bearer ${token.access_token}` },
+          signal: AbortSignal.timeout(SPOTIFY_TIMEOUT),
+        });
+        user = (await me.json()).id || '';
+      } catch {
+        // user name is only for display
+      }
+
+      fs.writeFileSync(this.spotifyTokenPath(), JSON.stringify({
+        clientId: pending.clientId,
+        refreshToken: token.refresh_token,
+        accessToken: token.access_token,
+        expiresAt: Date.now() + (token.expires_in || 3600) * 1000,
+        user,
+      }, null, 2), { mode: 0o600 });
+      this.spotifyPending = null;
+      return { connected: true, user, clientId: pending.clientId };
+    } catch (error) {
+      return { error: `Spotify login failed: ${error.name === 'TimeoutError' ? 'Timeout' : error.message}` };
+    }
+  }
+
+  async spotifyDisconnect() {
+    try {
+      fs.unlinkSync(this.spotifyTokenPath());
+    } catch {
+      // already gone
+    }
+    return { connected: false };
   }
 }
 
