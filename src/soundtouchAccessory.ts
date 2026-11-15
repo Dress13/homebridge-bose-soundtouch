@@ -1250,8 +1250,9 @@ export class SoundTouchAccessory {
     // Preferred: Spotify Web API (Spotify Connect). Works without the Bose cloud.
     if (spotify.isConnected()) {
       const target = { host: this.deviceConfig.host, name: this.deviceInfo?.name || this.accessory.displayName };
+      let deviceId: string;
       try {
-        await spotify.play(target, config.spotifyUri);
+        deviceId = await spotify.play(target, config.spotifyUri);
       } catch (error) {
         this.platform.log.error(`${config.name}: ${error instanceof Error ? error.message : error}`);
         return;
@@ -1263,7 +1264,7 @@ export class SoundTouchAccessory {
             this.platform.log.warn(`${config.name}: Spotify did not start playing on ${this.accessory.displayName}`);
             return;
           }
-          await spotify.setShuffle(target, config.shuffle === true);
+          await spotify.setShuffle(deviceId, config.shuffle === true);
         })
         .catch(err => this.platform.log.warn(`${config.name}: Failed to set shuffle:`, err.message || err));
       return;

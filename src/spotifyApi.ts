@@ -28,7 +28,11 @@ export interface SpotifyTarget {
   name: string;              // speaker name as shown in Spotify
 }
 
-export class SpotifyApiError extends Error {}
+export class SpotifyApiError extends Error {
+  constructor(message: string, public readonly status?: number) {
+    super(message);
+  }
+}
 
 /**
  * Turn a Spotify share link into a URI; URIs pass through unchanged.
@@ -59,19 +63,32 @@ export class SpotifyApi {
   }
 
   /**
-   * Start a playlist/album/artist/track on the given speaker and set shuffle.
-   * The speaker wakes from standby by itself.
+   * Start a playlist/album/artist/track on the given speaker (wakes it from standby).
+   * Returns the Spotify device id of the speaker.
    */
-  async play(target: SpotifyTarget, spotifyUri: string): Promise<void> {
+  async play(target: SpotifyTarget, spotifyUri: string): Promise<string> {
     const deviceId = await this.findDeviceId(target);
     const uri = normalizeSpotifyUri(spotifyUri);
     const body = /^spotify:(track|episode):/.test(uri) ? { uris: [uri] } : { context_uri: uri };
-    await this.request('PUT', `/me/player/play?device_id=${deviceId}`, body);
+    // Right after the sign-in Spotify may not know the speaker yet (404): retry briefly
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.request('PUT', `/me/player/play?device_id=${deviceId}`, body);
+        return deviceId;
+      } catch (error) {
+        if (!(error instanceof SpotifyApiError) || error.status !== 404 || attempt >= 6) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
   }
 
-  /** Set shuffle on the speaker; when enabling, skip once so a random track plays first. */
-  async setShuffle(target: SpotifyTarget, enabled: boolean): Promise<void> {
-    const deviceId = await this.findDeviceId(target);
+  /**
+   * Set shuffle on the device returned by play(); when enabling, skip once so a
+   * random track plays first. Takes the device id so the speaker is not signed in again.
+   */
+  async setShuffle(deviceId: string, enabled: boolean): Promise<void> {
     await this.request('PUT', `/me/player/shuffle?state=${enabled}&device_id=${deviceId}`);
     if (enabled) {
       await this.request('POST', `/me/player/next?device_id=${deviceId}`);
@@ -82,9 +99,10 @@ export class SpotifyApi {
     const local = await this.getLocalConnectInfo(target.host);
     const user = await this.getUser();
 
-    // Whoever streamed last owns the speaker's Connect session. Sign the speaker
-    // in to the plugin's account first so Spotify offers it as a device.
-    const mustSignIn = local !== undefined && local.activeUser !== user;
+    // Always sign the speaker in to the plugin's account with a fresh token first:
+    // whoever streamed last owns its Connect session, and even our own earlier
+    // sign-in goes stale (the speaker then hangs in BUFFERING_STATE forever).
+    const mustSignIn = local !== undefined;
     if (mustSignIn) {
       await this.signInSpeaker(target, user);
     }
@@ -199,7 +217,9 @@ export class SpotifyApi {
       } catch {
         // keep raw text
       }
-      throw new SpotifyApiError(`Spotify API ${method} ${endpoint.split('?')[0]} failed (${response.status}): ${message}`);
+      throw new SpotifyApiError(
+        `Spotify API ${method} ${endpoint.split('?')[0]} failed (${response.status}): ${message}`, response.status,
+      );
     }
     try {
       return text ? JSON.parse(text) : undefined;
